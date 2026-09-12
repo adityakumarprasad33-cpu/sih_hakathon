@@ -53,3 +53,14 @@ Thumbs.db
 .vscode/*
 !.vscode/extensions.json
 .idea/
+# Flutter / Dart Mobile Build Output
+mobile/.dart_tool/
+mobile/build/
+mobile/android/.gradle/
+mobile/android/local.properties
+mobile/ios/.symlinks/
+mobile/ios/Pods/
+mobile/ios/Podfile.lock
+*.apk
+*.aab
+*.ipa
