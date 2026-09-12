@@ -5,10 +5,12 @@ import 'package:flutter/foundation.dart';
 import 'package:flutter_blue_plus/flutter_blue_plus.dart';
 import 'package:samadhan_health/core/constants/app_constants.dart';
 import 'package:samadhan_health/core/models/telemetry_packet.dart';
+import 'package:samadhan_health/modules/risk/tiny_ml_risk_engine.dart';
 import 'package:samadhan_health/modules/sync/firebase_sync_service.dart';
 
 class BleGatewayService extends ChangeNotifier {
   final FirebaseSyncService _syncService;
+  final TinyMlRiskEngine _riskEngine = TinyMlRiskEngine();
 
   BluetoothDevice? _connectedDevice;
   StreamSubscription? _scanSubscription;
@@ -21,6 +23,7 @@ class BleGatewayService extends ChangeNotifier {
   List<ScanResult> _scanResults = [];
 
   TelemetryPacket? _latestPacket;
+  RiskAssessmentResult? _latestRiskAssessment;
   final List<TelemetryPacket> _telemetryHistory = [];
 
   String _currentUid = 'demo-patient-uid';
@@ -31,6 +34,7 @@ class BleGatewayService extends ChangeNotifier {
   List<ScanResult> get scanResults => _scanResults;
   BluetoothDevice? get connectedDevice => _connectedDevice;
   TelemetryPacket? get latestPacket => _latestPacket;
+  RiskAssessmentResult? get latestRiskAssessment => _latestRiskAssessment;
   List<TelemetryPacket> get telemetryHistory => List.unmodifiable(_telemetryHistory);
 
   BleGatewayService(this._syncService) {
@@ -141,8 +145,40 @@ class BleGatewayService extends ChangeNotifier {
   }
 
   void _handleIncomingPacket(TelemetryPacket packet) {
-    _latestPacket = packet;
-    _telemetryHistory.add(packet);
+    // 1. Run local on-device TinyML & Multi-Sensor Temporal Fusion Engine
+    _latestRiskAssessment = _riskEngine.evaluateTelemetry(packet);
+
+    // 2. Attach updated composite risk score
+    final evaluatedPacket = TelemetryPacket(
+      deviceId: packet.deviceId,
+      timestamp: packet.timestamp,
+      heartRate: packet.heartRate,
+      spo2: packet.spo2,
+      hrStatus: packet.hrStatus,
+      spo2Status: packet.spo2Status,
+      ppgQuality: packet.ppgQuality,
+      temperature: packet.temperature,
+      humidity: packet.humidity,
+      dhtStatus: packet.dhtStatus,
+      accelX: packet.accelX,
+      accelY: packet.accelY,
+      accelZ: packet.accelZ,
+      accelMagnitude: packet.accelMagnitude,
+      gyroX: packet.gyroX,
+      gyroY: packet.gyroY,
+      gyroZ: packet.gyroZ,
+      gyroActivity: packet.gyroActivity,
+      movementState: packet.movementState,
+      imuStatus: packet.imuStatus,
+      overallDataQuality: packet.overallDataQuality,
+      riskScore: _latestRiskAssessment!.compositeRiskScore,
+      fallState: packet.fallState,
+      battery: packet.battery,
+      isSynced: packet.isSynced,
+    );
+
+    _latestPacket = evaluatedPacket;
+    _telemetryHistory.add(evaluatedPacket);
     if (_telemetryHistory.length > 50) {
       _telemetryHistory.removeAt(0);
     }
@@ -150,10 +186,10 @@ class BleGatewayService extends ChangeNotifier {
     _status = ConnectionStatus.live;
     notifyListeners();
 
-    // Relay to cloud sync gateway (Contract Section 5)
+    // 3. Relay to cloud sync gateway (Contract Section 5)
     _syncService.syncPacket(
       uid: _currentUid,
-      packet: packet,
+      packet: evaluatedPacket,
     );
   }
 
@@ -206,7 +242,6 @@ class BleGatewayService extends ChangeNotifier {
         movementState: mag > 1.2 ? 'ACTIVE' : 'RESTING',
         imuStatus: 'VALID',
         overallDataQuality: 'GOOD',
-        riskScore: currentHr > 105 ? 42.0 : 12.0,
         fallState: 'IDLE',
         battery: 88,
       );
@@ -248,7 +283,6 @@ class BleGatewayService extends ChangeNotifier {
       movementState: 'ACTIVE',
       imuStatus: 'VALID',
       overallDataQuality: 'GOOD',
-      riskScore: 94.0,
       fallState: 'FALL_CONFIRMED', // Confirmed fall
       battery: 85,
     );

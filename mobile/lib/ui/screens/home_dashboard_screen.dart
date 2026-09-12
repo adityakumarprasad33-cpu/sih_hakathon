@@ -4,6 +4,7 @@ import 'package:samadhan_health/core/constants/app_constants.dart';
 import 'package:samadhan_health/core/theme/app_theme.dart';
 import 'package:samadhan_health/modules/auth/auth_service.dart';
 import 'package:samadhan_health/modules/ble/ble_gateway_service.dart';
+import 'package:samadhan_health/modules/risk/tiny_ml_risk_engine.dart';
 import 'package:samadhan_health/modules/sync/firebase_sync_service.dart';
 import 'package:samadhan_health/ui/screens/ai_companion_screen.dart';
 import 'package:samadhan_health/ui/screens/device_pairing_screen.dart';
@@ -22,10 +23,27 @@ class HomeDashboardScreen extends StatelessWidget {
     final sync = context.watch<FirebaseSyncService>();
 
     final packet = ble.latestPacket;
+    final assessment = ble.latestRiskAssessment;
     final hr = packet?.heartRate ?? 72;
-    
-    
+    final spo2 = packet?.spo2 ?? 98.2;
+    final temp = packet?.temperature ?? 26.4;
     final isLive = ble.status == ConnectionStatus.live;
+
+    Color riskColor;
+    switch (assessment?.state) {
+      case FusionRiskState.emergency:
+      case FusionRiskState.critical:
+        riskColor = AppTheme.danger;
+        break;
+      case FusionRiskState.warning:
+        riskColor = AppTheme.warning;
+        break;
+      case FusionRiskState.watch:
+        riskColor = AppTheme.secondary;
+        break;
+      default:
+        riskColor = AppTheme.success;
+    }
 
     return Scaffold(
       appBar: AppBar(
@@ -122,7 +140,7 @@ class HomeDashboardScreen extends StatelessWidget {
                             borderRadius: BorderRadius.circular(12),
                           ),
                           child: Text(
-                            ' BPM',
+                            '$hr BPM',
                             style: const TextStyle(
                               color: AppTheme.primary,
                               fontSize: 12,
@@ -142,11 +160,11 @@ class HomeDashboardScreen extends StatelessWidget {
                       mainAxisAlignment: MainAxisAlignment.spaceBetween,
                       children: [
                         Text(
-                          'PPG Quality: ',
+                          'PPG Quality: ${packet?.ppgQuality ?? "GOOD"}',
                           style: const TextStyle(color: AppTheme.textMuted, fontSize: 11),
                         ),
                         Text(
-                          'Battery: % â€¢ ESP32-S3',
+                          'Battery: ${packet?.battery ?? 88}% • ESP32-S3',
                           style: const TextStyle(color: AppTheme.textMuted, fontSize: 11),
                         ),
                       ],
@@ -156,7 +174,7 @@ class HomeDashboardScreen extends StatelessWidget {
               ),
               const SizedBox(height: 18),
 
-              // 2. Offline Sync & Buffer Status Banner (Contract Section 5)
+              // 2. Offline Sync & Buffer Status Banner
               if (sync.unsyncedCount > 0 || !isLive) ...[
                 Container(
                   padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 10),
@@ -172,8 +190,8 @@ class HomeDashboardScreen extends StatelessWidget {
                       Expanded(
                         child: Text(
                           sync.unsyncedCount > 0
-                              ? ' packets buffered in offline ring buffer'
-                              : 'Cloud gateway active â€¢ /telemetry/live',
+                              ? '${sync.unsyncedCount} packets buffered in offline ring buffer'
+                              : 'Cloud gateway active • /telemetry/live',
                           style: const TextStyle(
                             color: AppTheme.textPrimary,
                             fontSize: 12,
@@ -200,28 +218,28 @@ class HomeDashboardScreen extends StatelessWidget {
                 const SizedBox(height: 18),
               ],
 
-              // 3. Grid of Sensor Vitals (Contract Section 4)
+              // 3. Grid of Sensor Vitals
               Row(
                 children: [
                   Expanded(
                     child: VitalCard(
                       label: 'Heart Rate',
-                      value: '',
+                      value: '$hr',
                       unit: 'BPM',
                       icon: Icons.favorite_rounded,
                       accentColor: AppTheme.danger,
-                      subtitle: 'MAX30102 â€¢ ',
+                      subtitle: 'MAX30102 • ${packet?.hrStatus ?? "VALID"}',
                     ),
                   ),
                   const SizedBox(width: 14),
                   Expanded(
                     child: VitalCard(
                       label: 'SpO2 Oxygen',
-                      value: '',
+                      value: '$spo2',
                       unit: '%',
                       icon: Icons.water_drop_rounded,
                       accentColor: AppTheme.secondary,
-                      subtitle: 'MAX30102 â€¢ ',
+                      subtitle: 'MAX30102 • ${packet?.spo2Status ?? "VALID"}',
                     ),
                   ),
                 ],
@@ -232,90 +250,136 @@ class HomeDashboardScreen extends StatelessWidget {
                   Expanded(
                     child: VitalCard(
                       label: 'Ambient Temp',
-                      value: '',
-                      unit: 'Â°C',
+                      value: '$temp',
+                      unit: '°C',
                       icon: Icons.thermostat_rounded,
                       accentColor: AppTheme.warning,
-                      subtitle: 'DHT22 â€¢ Hum: %',
+                      subtitle: 'DHT22 • Hum: ${packet?.humidity ?? 54}%',
                     ),
                   ),
                   const SizedBox(width: 14),
                   Expanded(
                     child: VitalCard(
                       label: 'IMU Motion',
-                      value: '',
+                      value: '${packet?.accelMagnitude?.toStringAsFixed(2) ?? "1.00"}',
                       unit: 'g',
                       icon: Icons.directions_walk_rounded,
                       accentColor: AppTheme.success,
-                      subtitle: 'MPU6050 â€¢ ',
+                      subtitle: 'MPU6050 • ${packet?.movementState ?? "RESTING"}',
                     ),
                   ),
                 ],
               ),
               const SizedBox(height: 18),
 
-              // 4. Clinical Risk & Fall Detection Subsystem
+              // 4. On-Device TinyML & Multi-Sensor Temporal Fusion Engine
               Container(
-                padding: const EdgeInsets.all(16),
+                padding: const EdgeInsets.all(18),
                 decoration: BoxDecoration(
                   color: AppTheme.surface,
-                  borderRadius: BorderRadius.circular(16),
-                  border: Border.all(
-                    color: packet?.riskLevel == RiskLevel.critical
-                        ? AppTheme.danger
-                        : AppTheme.border,
-                  ),
+                  borderRadius: BorderRadius.circular(18),
+                  border: Border.all(color: riskColor.withOpacity(0.4)),
                 ),
-                child: Row(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
-                    Container(
-                      padding: const EdgeInsets.all(12),
-                      decoration: BoxDecoration(
-                        color: (packet?.riskLevel == RiskLevel.critical
-                                ? AppTheme.danger
-                                : AppTheme.success)
-                            .withOpacity(0.15),
-                        shape: BoxShape.circle,
-                      ),
-                      child: Icon(
-                        packet?.riskLevel == RiskLevel.critical
-                            ? Icons.warning_amber_rounded
-                            : Icons.shield_rounded,
-                        color: packet?.riskLevel == RiskLevel.critical
-                            ? AppTheme.danger
-                            : AppTheme.success,
-                        size: 24,
-                      ),
-                    ),
-                    const SizedBox(width: 14),
-                    Expanded(
-                      child: Column(
-                        crossAxisAlignment: CrossAxisAlignment.start,
-                        children: [
-                          Text(
-                            'FALL STATE: ',
+                    Row(
+                      children: [
+                        Container(
+                          padding: const EdgeInsets.all(10),
+                          decoration: BoxDecoration(
+                            color: riskColor.withOpacity(0.15),
+                            shape: BoxShape.circle,
+                          ),
+                          child: Icon(
+                            assessment?.state == FusionRiskState.emergency ||
+                                    assessment?.state == FusionRiskState.critical
+                                ? Icons.warning_amber_rounded
+                                : Icons.psychology_rounded,
+                            color: riskColor,
+                            size: 24,
+                          ),
+                        ),
+                        const SizedBox(width: 12),
+                        Expanded(
+                          child: Column(
+                            crossAxisAlignment: CrossAxisAlignment.start,
+                            children: [
+                              Text(
+                                'ON-DEVICE TINYML: ${assessment?.state.name.toUpperCase() ?? "NORMAL"}',
+                                style: TextStyle(
+                                  color: riskColor,
+                                  fontSize: 13,
+                                  fontWeight: FontWeight.w900,
+                                  letterSpacing: 0.8,
+                                ),
+                              ),
+                              const SizedBox(height: 2),
+                              Text(
+                                'Primary Factor: ${assessment?.primaryContributingFactor ?? "Stable Baseline"}',
+                                style: const TextStyle(
+                                  color: AppTheme.textSecondary,
+                                  fontSize: 12,
+                                ),
+                              ),
+                            ],
+                          ),
+                        ),
+                        Container(
+                          padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
+                          decoration: BoxDecoration(
+                            color: riskColor.withOpacity(0.12),
+                            borderRadius: BorderRadius.circular(10),
+                            border: Border.all(color: riskColor.withOpacity(0.3)),
+                          ),
+                          child: Text(
+                            '${assessment?.compositeRiskScore ?? 12.0}/100',
                             style: TextStyle(
-                              color: packet?.riskLevel == RiskLevel.critical
-                                  ? AppTheme.danger
-                                  : AppTheme.success,
+                              color: riskColor,
                               fontSize: 13,
                               fontWeight: FontWeight.w800,
-                              letterSpacing: 0.5,
                             ),
                           ),
-                          const SizedBox(height: 2),
-                          Text(
-                            packet?.fallDetected == true
-                                ? 'HIGH IMPACT FALL CONFIRMED â€¢ SOS ALERT ENGAGED'
-                                : 'Overall Quality:  â€¢ Risk: /100',
-                            style: const TextStyle(
-                              color: AppTheme.textSecondary,
-                              fontSize: 12,
-                            ),
-                          ),
-                        ],
-                      ),
+                        ),
+                      ],
                     ),
+                    const SizedBox(height: 14),
+
+                    // TinyML Sub-indices Breakdown
+                    Row(
+                      mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                      children: [
+                        _TinyMlPill(label: 'Cardiac', value: '${assessment?.cardiacStressIndex ?? 10.0}', color: AppTheme.danger),
+                        _TinyMlPill(label: 'Hypoxia', value: '${assessment?.respiratoryIndex ?? 5.0}', color: AppTheme.secondary),
+                        _TinyMlPill(label: 'Heat', value: '${assessment?.heatStressIndex ?? 10.0}', color: AppTheme.warning),
+                        _TinyMlPill(label: 'Fall', value: '${assessment?.fallRiskIndex ?? 0.0}', color: AppTheme.primary),
+                      ],
+                    ),
+
+                    if (assessment != null && assessment.clinicalFlags.isNotEmpty) ...[
+                      const SizedBox(height: 12),
+                      Wrap(
+                        spacing: 6,
+                        runSpacing: 4,
+                        children: assessment.clinicalFlags.map((flag) {
+                          return Container(
+                            padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 2),
+                            decoration: BoxDecoration(
+                              color: AppTheme.danger.withOpacity(0.12),
+                              borderRadius: BorderRadius.circular(6),
+                            ),
+                            child: Text(
+                              flag,
+                              style: const TextStyle(
+                                color: AppTheme.danger,
+                                fontSize: 10,
+                                fontWeight: FontWeight.bold,
+                              ),
+                            ),
+                          );
+                        }).toList(),
+                      ),
+                    ],
                   ],
                 ),
               ),
@@ -378,6 +442,33 @@ class HomeDashboardScreen extends StatelessWidget {
             ],
           ),
         ),
+      ),
+    );
+  }
+}
+
+class _TinyMlPill extends StatelessWidget {
+  final String label;
+  final String value;
+  final Color color;
+
+  const _TinyMlPill({required this.label, required this.value, required this.color});
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
+      decoration: BoxDecoration(
+        color: AppTheme.surfaceLight,
+        borderRadius: BorderRadius.circular(10),
+        border: Border.all(color: AppTheme.border),
+      ),
+      child: Column(
+        children: [
+          Text(label, style: const TextStyle(color: AppTheme.textMuted, fontSize: 10, fontWeight: FontWeight.w600)),
+          const SizedBox(height: 2),
+          Text(value, style: TextStyle(color: color, fontSize: 13, fontWeight: FontWeight.bold)),
+        ],
       ),
     );
   }
