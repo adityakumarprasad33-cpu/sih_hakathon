@@ -1,0 +1,55 @@
+# Dependencies
+node_modules/
+/.pnp
+.pnp.js
+
+# Next.js build output
+.next/
+out/
+build/
+dist/
+
+# TypeScript build info
+*.tsbuildinfo
+next-env.d.ts
+
+# Environment variables & secrets (CRITICAL - ALL ENV FILES BLOCKED)
+.env*
+.env
+.env.local
+.env.example
+.env.development.local
+.env.test.local
+.env.production.local
+*.pem
+*.key
+
+# Spreadsheets, datasets & sensitive documents
+*.xlsx
+*.xls
+*.csv
+
+# Binaries & CLI tools
+arduino-cli-bin/
+*.exe
+
+# Testing & Coverage
+/coverage
+
+# Debug logs
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+.pnpm-debug.log*
+
+# OS / Editor files
+.DS_Store
+Thumbs.db
+*.suo
+*.ntvs*
+*.njsproj
+*.sln
+*.sw?
+.vscode/*
+!.vscode/extensions.json
+.idea/

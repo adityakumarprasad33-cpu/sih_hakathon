@@ -1,0 +1,176 @@
+{
+  "rules": {
+    ".read": false,
+    ".write": false,
+
+    "users": {
+      "$uid": {
+        ".read": "auth != null && auth.uid === $uid",
+        ".write": "auth != null && auth.uid === $uid && (!data.exists() ? (newData.child('uid').val() === auth.uid && newData.child('role').val() === 'patient' && (!newData.hasChild('doctorStatus') || newData.child('doctorStatus').val() === 'pending') && !newData.hasChild('admin')) : (newData.child('uid').val() === data.child('uid').val() && (!newData.hasChild('role') || newData.child('role').val() === data.child('role').val()) && (!newData.hasChild('doctorStatus') || newData.child('doctorStatus').val() === data.child('doctorStatus').val()) && (!newData.hasChild('admin') || newData.child('admin').val() === data.child('admin').val()) && (!newData.hasChild('createdAt') || newData.child('createdAt').val() === data.child('createdAt').val())))"
+      }
+    },
+
+    "doctors": {
+      "$doctorUid": {
+        "professionalProfile": {
+          ".read": "auth != null && (auth.uid === $doctorUid || root.child('users/' + auth.uid + '/role').val() === 'doctor')",
+          ".write": "auth != null && auth.uid === $doctorUid && (!newData.hasChild('verified') || newData.child('verified').val() === data.child('verified').val())"
+        }
+      }
+    },
+
+    "patients": {
+      "$patientUid": {
+        "settings": {
+          ".read": "auth != null && auth.uid === $patientUid",
+          ".write": "auth != null && auth.uid === $patientUid"
+        }
+      }
+    },
+
+    "userLookupByEmail": {
+      ".read": false,
+      "$encodedEmail": {
+        ".read": false,
+        ".write": "auth != null && !data.exists() && newData.child('uid').val() === auth.uid"
+      }
+    },
+
+    "doctorPatients": {
+      "$doctorUid": {
+        ".read": "auth != null && auth.uid === $doctorUid",
+        "$patientUid": {
+          ".write": "auth != null && ((auth.uid === $doctorUid && !data.exists() && newData.child('doctorUid').val() === $doctorUid && newData.child('patientUid').val() === $patientUid && newData.child('status').val() === 'INVITED' && newData.child('consentStatus').val() === 'PENDING' && newData.child('createdAt').isNumber() && newData.hasChild('permissions')) || (auth.uid === $patientUid && data.exists() && data.child('status').val() === 'INVITED' && data.child('consentStatus').val() === 'PENDING' && newData.child('status').val() === 'ACTIVE' && newData.child('consentStatus').val() === 'GRANTED' && newData.child('doctorUid').val() === data.child('doctorUid').val() && newData.child('patientUid').val() === data.child('patientUid').val() && newData.child('createdAt').val() === data.child('createdAt').val() && newData.child('permissions').val() === data.child('permissions').val() && newData.child('doctorEmail').val() === data.child('doctorEmail').val() && newData.child('patientEmail').val() === data.child('patientEmail').val() && newData.child('approvedAt').isNumber()) || (auth.uid === $patientUid && data.exists() && data.child('status').val() === 'INVITED' && data.child('consentStatus').val() === 'PENDING' && newData.child('status').val() === 'DECLINED' && newData.child('consentStatus').val() === 'DECLINED' && newData.child('doctorUid').val() === data.child('doctorUid').val() && newData.child('patientUid').val() === data.child('patientUid').val() && newData.child('createdAt').val() === data.child('createdAt').val() && newData.child('permissions').val() === data.child('permissions').val() && newData.child('doctorEmail').val() === data.child('doctorEmail').val() && newData.child('patientEmail').val() === data.child('patientEmail').val() && newData.child('declinedAt').isNumber()) || (auth.uid === $patientUid && data.exists() && data.child('status').val() === 'ACTIVE' && data.child('consentStatus').val() === 'GRANTED' && newData.child('status').val() === 'REVOKED' && newData.child('consentStatus').val() === 'REVOKED' && newData.child('doctorUid').val() === data.child('doctorUid').val() && newData.child('patientUid').val() === data.child('patientUid').val() && newData.child('createdAt').val() === data.child('createdAt').val() && newData.child('permissions').val() === data.child('permissions').val() && newData.child('doctorEmail').val() === data.child('doctorEmail').val() && newData.child('patientEmail').val() === data.child('patientEmail').val() && newData.child('revokedAt').isNumber()))"
+        }
+      }
+    },
+
+    "patientDoctors": {
+      "$patientUid": {
+        ".read": "auth != null && auth.uid === $patientUid",
+        "$doctorUid": {
+          ".write": "auth != null && ((auth.uid === $doctorUid && !data.exists() && newData.child('doctorUid').val() === $doctorUid && newData.child('patientUid').val() === $patientUid && newData.child('status').val() === 'INVITED' && newData.child('consentStatus').val() === 'PENDING' && newData.child('createdAt').isNumber() && newData.hasChild('permissions')) || (auth.uid === $patientUid && data.exists() && data.child('status').val() === 'INVITED' && data.child('consentStatus').val() === 'PENDING' && newData.child('status').val() === 'ACTIVE' && newData.child('consentStatus').val() === 'GRANTED' && newData.child('doctorUid').val() === data.child('doctorUid').val() && newData.child('patientUid').val() === data.child('patientUid').val() && newData.child('createdAt').val() === data.child('createdAt').val() && newData.child('permissions').val() === data.child('permissions').val() && newData.child('doctorEmail').val() === data.child('doctorEmail').val() && newData.child('patientEmail').val() === data.child('patientEmail').val() && newData.child('approvedAt').isNumber()) || (auth.uid === $patientUid && data.exists() && data.child('status').val() === 'INVITED' && data.child('consentStatus').val() === 'PENDING' && newData.child('status').val() === 'DECLINED' && newData.child('consentStatus').val() === 'DECLINED' && newData.child('doctorUid').val() === data.child('doctorUid').val() && newData.child('patientUid').val() === data.child('patientUid').val() && newData.child('createdAt').val() === data.child('createdAt').val() && newData.child('permissions').val() === data.child('permissions').val() && newData.child('doctorEmail').val() === data.child('doctorEmail').val() && newData.child('patientEmail').val() === data.child('patientEmail').val() && newData.child('declinedAt').isNumber()) || (auth.uid === $patientUid && data.exists() && data.child('status').val() === 'ACTIVE' && data.child('consentStatus').val() === 'GRANTED' && newData.child('status').val() === 'REVOKED' && newData.child('consentStatus').val() === 'REVOKED' && newData.child('doctorUid').val() === data.child('doctorUid').val() && newData.child('patientUid').val() === data.child('patientUid').val() && newData.child('createdAt').val() === data.child('createdAt').val() && newData.child('permissions').val() === data.child('permissions').val() && newData.child('doctorEmail').val() === data.child('doctorEmail').val() && newData.child('patientEmail').val() === data.child('patientEmail').val() && newData.child('revokedAt').isNumber()))"
+        }
+      }
+    },
+
+    "telemetry": {
+      "$patientUid": {
+        ".read": "auth != null && (auth.uid === $patientUid || (root.child('doctorPatients/' + auth.uid + '/' + $patientUid + '/status').val() === 'ACTIVE' && root.child('doctorPatients/' + auth.uid + '/' + $patientUid + '/consentStatus').val() === 'GRANTED' && (root.child('doctorPatients/' + auth.uid + '/' + $patientUid + '/permissions/READ_VITALS').val() === true || root.child('doctorPatients/' + auth.uid + '/' + $patientUid + '/permissions/0').val() === 'READ_VITALS' || root.child('doctorPatients/' + auth.uid + '/' + $patientUid + '/permissions/1').val() === 'READ_VITALS' || root.child('doctorPatients/' + auth.uid + '/' + $patientUid + '/permissions/2').val() === 'READ_VITALS' || root.child('doctorPatients/' + auth.uid + '/' + $patientUid + '/permissions/3').val() === 'READ_VITALS')))",
+        "$deviceId": {
+          "$timestamp": {
+            ".write": "auth != null && auth.uid === $patientUid && root.child('userDevices/' + auth.uid + '/' + $deviceId).val() === true"
+          }
+        },
+        "history": {
+          "$timestamp": {
+            ".write": "auth != null && auth.uid === $patientUid"
+          }
+        },
+        "live": {
+          ".write": "auth != null && auth.uid === $patientUid"
+        }
+      }
+    },
+
+    "telemetryHistory": {
+      "$patientUid": {
+        ".read": "auth != null && (auth.uid === $patientUid || (root.child('doctorPatients/' + auth.uid + '/' + $patientUid + '/status').val() === 'ACTIVE' && root.child('doctorPatients/' + auth.uid + '/' + $patientUid + '/consentStatus').val() === 'GRANTED' && (root.child('doctorPatients/' + auth.uid + '/' + $patientUid + '/permissions/READ_VITALS').val() === true || root.child('doctorPatients/' + auth.uid + '/' + $patientUid + '/permissions/0').val() === 'READ_VITALS' || root.child('doctorPatients/' + auth.uid + '/' + $patientUid + '/permissions/1').val() === 'READ_VITALS' || root.child('doctorPatients/' + auth.uid + '/' + $patientUid + '/permissions/2').val() === 'READ_VITALS' || root.child('doctorPatients/' + auth.uid + '/' + $patientUid + '/permissions/3').val() === 'READ_VITALS')))",
+        "$timestamp": {
+          ".write": "auth != null && auth.uid === $patientUid"
+        }
+      }
+    },
+
+    "risk": {
+      "$patientUid": {
+        ".read": "auth != null && (auth.uid === $patientUid || (root.child('doctorPatients/' + auth.uid + '/' + $patientUid + '/status').val() === 'ACTIVE' && root.child('doctorPatients/' + auth.uid + '/' + $patientUid + '/consentStatus').val() === 'GRANTED' && (root.child('doctorPatients/' + auth.uid + '/' + $patientUid + '/permissions/READ_RISK').val() === true || root.child('doctorPatients/' + auth.uid + '/' + $patientUid + '/permissions/0').val() === 'READ_RISK' || root.child('doctorPatients/' + auth.uid + '/' + $patientUid + '/permissions/1').val() === 'READ_RISK' || root.child('doctorPatients/' + auth.uid + '/' + $patientUid + '/permissions/2').val() === 'READ_RISK' || root.child('doctorPatients/' + auth.uid + '/' + $patientUid + '/permissions/3').val() === 'READ_RISK')))",
+        "$timestamp": {
+          ".write": false
+        }
+      }
+    },
+
+    "alerts": {
+      "$patientUid": {
+        ".read": "auth != null && (auth.uid === $patientUid || (root.child('doctorPatients/' + auth.uid + '/' + $patientUid + '/status').val() === 'ACTIVE' && root.child('doctorPatients/' + auth.uid + '/' + $patientUid + '/consentStatus').val() === 'GRANTED' && (root.child('doctorPatients/' + auth.uid + '/' + $patientUid + '/permissions/RECEIVE_ALERTS').val() === true || root.child('doctorPatients/' + auth.uid + '/' + $patientUid + '/permissions/0').val() === 'RECEIVE_ALERTS' || root.child('doctorPatients/' + auth.uid + '/' + $patientUid + '/permissions/1').val() === 'RECEIVE_ALERTS' || root.child('doctorPatients/' + auth.uid + '/' + $patientUid + '/permissions/2').val() === 'RECEIVE_ALERTS' || root.child('doctorPatients/' + auth.uid + '/' + $patientUid + '/permissions/3').val() === 'RECEIVE_ALERTS')))",
+        "$alertId": {
+          ".write": "auth != null && auth.uid === $patientUid && !data.exists() && newData.child('patientUid').val() === auth.uid && newData.child('createdAt').isNumber()"
+        }
+      }
+    },
+
+    "userDevices": {
+      "$uid": {
+        ".read": "auth != null && auth.uid === $uid",
+        "$deviceId": {
+          ".write": "auth != null && auth.uid === $uid && (!root.child('devices/' + $deviceId + '/ownerUid').exists() || root.child('devices/' + $deviceId + '/ownerUid').val() === auth.uid)"
+        }
+      }
+    },
+
+    "devices": {
+      "$deviceId": {
+        ".read": "auth != null && (data.child('ownerUid').val() === auth.uid || root.child('userDevices/' + auth.uid + '/' + $deviceId).exists())",
+        ".write": "auth != null && (!data.exists() ? newData.child('ownerUid').val() === auth.uid : (data.child('ownerUid').val() === auth.uid && newData.child('ownerUid').val() === auth.uid))"
+      }
+    },
+
+    "devicePairingRequests": {
+      "$requestId": {
+        ".read": "auth != null && (data.child('uid').val() === auth.uid || newData.child('uid').val() === auth.uid)",
+        ".write": "auth != null && (!data.exists() ? newData.child('uid').val() === auth.uid : data.child('uid').val() === auth.uid)"
+      }
+    },
+
+    "auditEvents": {
+      "$eventId": {
+        ".read": "auth != null && (data.child('actorUid').val() === auth.uid || data.child('targetUid').val() === auth.uid)",
+        ".write": "auth != null && !data.exists() && newData.child('actorUid').val() === auth.uid && newData.child('timestamp').isNumber() && newData.child('timestamp').val() <= now"
+      }
+    },
+
+    "simulationTelemetry": {
+      "$deviceId": {
+        "live": {
+          ".read": "auth != null",
+          ".write": "auth != null && newData.child('deviceId').val() === $deviceId && newData.child('source').val() === 'WOKWI_SIMULATION'"
+        },
+        "history": {
+          ".read": "auth != null",
+          "$entryKey": {
+            ".write": "auth != null && !data.exists() && newData.child('deviceId').val() === $deviceId && newData.child('source').val() === 'WOKWI_SIMULATION' && newData.child('timestamp').isNumber()"
+          }
+        },
+        "baseline": {
+          ".read": "auth != null",
+          ".write": "auth != null && newData.child('deviceId').val() === $deviceId"
+        },
+        "risk": {
+          "live": {
+            ".read": "auth != null",
+            ".write": "auth != null && newData.child('deviceId').val() === $deviceId"
+          },
+          "history": {
+            ".read": "auth != null",
+            "$entryKey": {
+              ".write": "auth != null && !data.exists() && newData.child('deviceId').val() === $deviceId && newData.child('timestamp').isNumber()"
+            }
+          }
+        },
+        "fall": {
+          "live": {
+            ".read": "auth != null",
+            ".write": "auth != null && newData.child('deviceId').val() === $deviceId"
+          },
+          "history": {
+            ".read": "auth != null",
+            "$entryKey": {
+              ".write": "auth != null && !data.exists() && newData.child('deviceId').val() === $deviceId && newData.child('timestamp').isNumber()"
+            }
+          }
+        }
+      }
+    }
+  }
+}
