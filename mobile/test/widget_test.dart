@@ -8,6 +8,7 @@ import 'package:samadhan_health/modules/ble/ble_gateway_service.dart';
 import 'package:samadhan_health/modules/guardian/wearable_guardian_service.dart';
 import 'package:samadhan_health/modules/sync/firebase_sync_service.dart';
 import 'package:samadhan_health/ui/screens/auth_screen.dart';
+import 'package:samadhan_health/ui/screens/register_screen.dart';
 
 void main() {
   TestWidgetsFlutterBinding.ensureInitialized();
@@ -29,13 +30,45 @@ void main() {
         ],
         child: MaterialApp(
           theme: AppTheme.darkTheme,
-          home: AuthScreen(),
+          home: const AuthScreen(),
         ),
       ),
     );
 
     expect(find.byType(AuthScreen), findsOneWidget);
     expect(find.text('SAMADHAN HEALTH'), findsOneWidget);
+    expect(find.text('CLINICAL WEARABLE GATEWAY'), findsOneWidget);
+    expect(find.text('Register Band'), findsOneWidget);
+
+    await tester.pumpAndSettle();
+  });
+
+  testWidgets('RegisterScreen renders clinical enrollment fields', (WidgetTester tester) async {
+    final auth = AuthService();
+    final sync = FirebaseSyncService();
+    final guardian = WearableGuardianService(checkPermissionsOnInit: false);
+    final ble = BleGatewayService(sync);
+
+    await tester.pumpWidget(
+      MultiProvider(
+        providers: [
+          ChangeNotifierProvider.value(value: auth),
+          ChangeNotifierProvider.value(value: sync),
+          ChangeNotifierProvider.value(value: guardian),
+          ChangeNotifierProvider.value(value: ble),
+          ChangeNotifierProvider(create: (_) => SamadhanAiService()),
+        ],
+        child: MaterialApp(
+          theme: AppTheme.darkTheme,
+          home: const RegisterScreen(),
+        ),
+      ),
+    );
+
+    expect(find.byType(RegisterScreen), findsOneWidget);
+    expect(find.text('Create Account'), findsOneWidget);
+    expect(find.text('CLINICAL ENROLLMENT'), findsOneWidget);
+    expect(find.text('COMPLETE REGISTRATION'), findsOneWidget);
 
     await tester.pumpAndSettle();
   });

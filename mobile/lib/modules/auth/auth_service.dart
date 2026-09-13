@@ -109,8 +109,13 @@ class AuthService extends ChangeNotifier {
     }
   }
 
-  /// Real Firebase Authentication: Create new patient account
-  Future<bool> signUp({required String email, required String password}) async {
+  /// Real Firebase Authentication: Create new patient account with profile data
+  Future<bool> signUp({
+    required String email,
+    required String password,
+    String? displayName,
+    String? emergencyContact,
+  }) async {
     _isBusy = true;
     _errorMessage = null;
     notifyListeners();
@@ -136,11 +141,34 @@ class AuthService extends ChangeNotifier {
         final expiresIn = int.tryParse(data['expiresIn'] as String? ?? '3600') ?? 3600;
         final expiresAt = DateTime.now().add(Duration(seconds: expiresIn)).millisecondsSinceEpoch;
 
+        final cleanDisplayName = (displayName != null && displayName.trim().isNotEmpty)
+            ? displayName.trim()
+            : email.split('@').first.toUpperCase();
+
+        // Update display name in Firebase Auth
+        try {
+          final updateUrl = Uri.parse('${FirebaseConstants.authUpdateProfileUrl}?key=${FirebaseConstants.apiKey}');
+          await http.post(
+            updateUrl,
+            headers: {'Content-Type': 'application/json'},
+            body: jsonEncode({
+              'idToken': idToken,
+              'displayName': cleanDisplayName,
+              'returnSecureToken': false,
+            }),
+          ).timeout(const Duration(seconds: 5));
+        } catch (_) {}
+
+        final contacts = (emergencyContact != null && emergencyContact.trim().isNotEmpty)
+            ? [emergencyContact.trim()]
+            : const ['+91 98765 43210'];
+
         final user = UserSession(
           uid: uid,
           email: email.trim(),
-          displayName: email.split('@').first.toUpperCase(),
+          displayName: cleanDisplayName,
           role: 'patient',
+          emergencyContacts: contacts,
           idToken: idToken,
           refreshToken: refreshToken,
           tokenExpiresAt: expiresAt,

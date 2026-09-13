@@ -5,21 +5,24 @@ import 'package:samadhan_health/core/theme/app_theme.dart';
 import 'package:samadhan_health/modules/auth/auth_service.dart';
 import 'package:samadhan_health/modules/ble/ble_gateway_service.dart';
 import 'package:samadhan_health/ui/screens/home_dashboard_screen.dart';
-import 'package:samadhan_health/ui/screens/register_screen.dart';
 
-class AuthScreen extends StatefulWidget {
-  const AuthScreen({super.key});
+class RegisterScreen extends StatefulWidget {
+  const RegisterScreen({super.key});
 
   @override
-  State<AuthScreen> createState() => _AuthScreenState();
+  State<RegisterScreen> createState() => _RegisterScreenState();
 }
 
-class _AuthScreenState extends State<AuthScreen> with SingleTickerProviderStateMixin {
+class _RegisterScreenState extends State<RegisterScreen> with SingleTickerProviderStateMixin {
   final _formKey = GlobalKey<FormState>();
+  final _nameController = TextEditingController();
   final _emailController = TextEditingController();
+  final _phoneController = TextEditingController();
   final _passwordController = TextEditingController();
+  final _confirmPasswordController = TextEditingController();
 
   bool _obscurePassword = true;
+  bool _obscureConfirmPassword = true;
 
   late AnimationController _animController;
   late Animation<double> _fadeAnim;
@@ -34,7 +37,7 @@ class _AuthScreenState extends State<AuthScreen> with SingleTickerProviderStateM
     );
     _fadeAnim = CurvedAnimation(parent: _animController, curve: Curves.easeOut);
     _slideAnim = Tween<Offset>(
-      begin: const Offset(0, 0.06),
+      begin: const Offset(0, 0.05),
       end: Offset.zero,
     ).animate(CurvedAnimation(parent: _animController, curve: Curves.easeOutCubic));
 
@@ -43,36 +46,38 @@ class _AuthScreenState extends State<AuthScreen> with SingleTickerProviderStateM
 
   @override
   void dispose() {
+    _nameController.dispose();
     _emailController.dispose();
+    _phoneController.dispose();
     _passwordController.dispose();
+    _confirmPasswordController.dispose();
     _animController.dispose();
     super.dispose();
   }
 
-  void _navigateToDashboard() {
-    Navigator.of(context).pushReplacement(
-      PageRouteBuilder(
-        transitionDuration: const Duration(milliseconds: 500),
-        pageBuilder: (context, anim1, anim2) => const HomeDashboardScreen(),
-        transitionsBuilder: (context, anim1, anim2, child) => FadeTransition(opacity: anim1, child: child),
-      ),
-    );
-  }
-
-  void _submitSignIn() async {
+  void _submitRegister() async {
     if (!_formKey.currentState!.validate()) return;
 
     final auth = context.read<AuthService>();
     final ble = context.read<BleGatewayService>();
 
-    final success = await auth.signIn(
+    final success = await auth.signUp(
       email: _emailController.text.trim(),
       password: _passwordController.text,
+      displayName: _nameController.text.trim(),
+      emergencyContact: _phoneController.text.trim(),
     );
 
     if (success && mounted && auth.currentUser != null) {
       ble.setUserUid(auth.currentUser!.uid);
-      _navigateToDashboard();
+      Navigator.of(context).pushAndRemoveUntil(
+        PageRouteBuilder(
+          transitionDuration: const Duration(milliseconds: 500),
+          pageBuilder: (context, anim1, anim2) => const HomeDashboardScreen(),
+          transitionsBuilder: (context, anim1, anim2, child) => FadeTransition(opacity: anim1, child: child),
+        ),
+        (route) => false,
+      );
     }
   }
 
@@ -84,10 +89,10 @@ class _AuthScreenState extends State<AuthScreen> with SingleTickerProviderStateM
       backgroundColor: const Color(0xFF090C15),
       body: Stack(
         children: [
-          // Ambient Lighting Top Glow
+          // Background ambient gradient
           Positioned(
-            top: -120,
-            left: MediaQuery.of(context).size.width / 2 - 130,
+            top: -100,
+            right: -80,
             child: Container(
               width: 260,
               height: 260,
@@ -95,7 +100,7 @@ class _AuthScreenState extends State<AuthScreen> with SingleTickerProviderStateM
                 shape: BoxShape.circle,
                 gradient: RadialGradient(
                   colors: [
-                    AppTheme.primaryTeal.withValues(alpha: 0.16),
+                    AppTheme.primaryTeal.withValues(alpha: 0.15),
                     Colors.transparent,
                   ],
                 ),
@@ -106,7 +111,7 @@ class _AuthScreenState extends State<AuthScreen> with SingleTickerProviderStateM
           SafeArea(
             child: Center(
               child: SingleChildScrollView(
-                padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 24),
+                padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 20),
                 child: FadeTransition(
                   opacity: _fadeAnim,
                   child: SlideTransition(
@@ -114,69 +119,68 @@ class _AuthScreenState extends State<AuthScreen> with SingleTickerProviderStateM
                     child: Form(
                       key: _formKey,
                       child: Column(
-                        mainAxisAlignment: MainAxisAlignment.center,
                         crossAxisAlignment: CrossAxisAlignment.stretch,
                         children: [
-                          // Brand Icon & Badge
-                          Center(
-                            child: Container(
-                              width: 64,
-                              height: 64,
-                              decoration: BoxDecoration(
-                                shape: BoxShape.circle,
-                                color: AppTheme.primaryTeal.withValues(alpha: 0.12),
-                                border: Border.all(color: AppTheme.primaryTeal.withValues(alpha: 0.4), width: 1.5),
-                                boxShadow: [
-                                  BoxShadow(
-                                    color: AppTheme.primaryTeal.withValues(alpha: 0.25),
-                                    blurRadius: 20,
-                                    spreadRadius: 2,
-                                  ),
-                                ],
+                          // Back Navigation & Brand Row
+                          Row(
+                            children: [
+                              IconButton(
+                                onPressed: () => Navigator.of(context).pop(),
+                                icon: const Icon(Icons.arrow_back_ios_new_rounded, color: Colors.white70, size: 20),
+                                padding: EdgeInsets.zero,
+                                alignment: Alignment.centerLeft,
                               ),
-                              child: const Icon(
-                                Icons.favorite_rounded,
-                                color: AppTheme.primaryTeal,
-                                size: 30,
+                              const Spacer(),
+                              Container(
+                                padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
+                                decoration: BoxDecoration(
+                                  color: AppTheme.primaryTeal.withValues(alpha: 0.12),
+                                  borderRadius: BorderRadius.circular(20),
+                                  border: Border.all(color: AppTheme.primaryTeal.withValues(alpha: 0.3)),
+                                ),
+                                child: Row(
+                                  mainAxisSize: MainAxisSize.min,
+                                  children: [
+                                    const Icon(Icons.verified_user_outlined, size: 13, color: AppTheme.primaryTeal),
+                                    const SizedBox(width: 5),
+                                    Text(
+                                      'CLINICAL ENROLLMENT',
+                                      style: GoogleFonts.jetBrainsMono(
+                                        fontSize: 9,
+                                        fontWeight: FontWeight.bold,
+                                        letterSpacing: 1.0,
+                                        color: AppTheme.primaryTeal,
+                                      ),
+                                    ),
+                                  ],
+                                ),
                               ),
-                            ),
+                            ],
                           ),
-                          const SizedBox(height: 18),
+                          const SizedBox(height: 20),
 
-                          // Brand Name & Subtitle
+                          // Header Title
                           Text(
-                            'SAMADHAN HEALTH',
-                            textAlign: TextAlign.center,
+                            'Create Account',
                             style: GoogleFonts.outfit(
-                              fontSize: 22,
-                              fontWeight: FontWeight.w800,
-                              letterSpacing: 2.5,
+                              fontSize: 28,
+                              fontWeight: FontWeight.bold,
                               color: Colors.white,
+                              letterSpacing: -0.5,
                             ),
                           ),
                           const SizedBox(height: 6),
-                          Center(
-                            child: Container(
-                              padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
-                              decoration: BoxDecoration(
-                                color: Colors.white.withValues(alpha: 0.05),
-                                borderRadius: BorderRadius.circular(20),
-                                border: Border.all(color: Colors.white.withValues(alpha: 0.1)),
-                              ),
-                              child: Text(
-                                'CLINICAL WEARABLE GATEWAY',
-                                style: GoogleFonts.jetBrainsMono(
-                                  fontSize: 10,
-                                  fontWeight: FontWeight.w600,
-                                  letterSpacing: 1.2,
-                                  color: Colors.white70,
-                                ),
-                              ),
+                          Text(
+                            'Enter your patient information to connect your Samadhan Wearable Band with cloud monitoring.',
+                            style: GoogleFonts.inter(
+                              fontSize: 13,
+                              color: Colors.white60,
+                              height: 1.4,
                             ),
                           ),
-                          const SizedBox(height: 32),
+                          const SizedBox(height: 24),
 
-                          // Main Sign In Card
+                          // Main Form Card
                           Container(
                             padding: const EdgeInsets.all(22),
                             decoration: BoxDecoration(
@@ -187,25 +191,43 @@ class _AuthScreenState extends State<AuthScreen> with SingleTickerProviderStateM
                             child: Column(
                               crossAxisAlignment: CrossAxisAlignment.stretch,
                               children: [
-                                Text(
-                                  'Sign In',
-                                  style: GoogleFonts.outfit(
-                                    fontSize: 20,
-                                    fontWeight: FontWeight.bold,
-                                    color: Colors.white,
+                                // Full Name
+                                TextFormField(
+                                  controller: _nameController,
+                                  style: GoogleFonts.inter(color: Colors.white, fontSize: 14),
+                                  decoration: InputDecoration(
+                                    labelText: 'Full Legal Name',
+                                    hintText: 'e.g. Rajesh Kumar',
+                                    hintStyle: const TextStyle(color: Colors.white30, fontSize: 13),
+                                    labelStyle: const TextStyle(color: Colors.white60, fontSize: 13),
+                                    prefixIcon: const Icon(Icons.person_outline_rounded, color: AppTheme.primaryTeal, size: 20),
+                                    filled: true,
+                                    fillColor: const Color(0xFF0C101D),
+                                    enabledBorder: OutlineInputBorder(
+                                      borderRadius: BorderRadius.circular(14),
+                                      borderSide: BorderSide(color: Colors.white.withValues(alpha: 0.1)),
+                                    ),
+                                    focusedBorder: OutlineInputBorder(
+                                      borderRadius: BorderRadius.circular(14),
+                                      borderSide: const BorderSide(color: AppTheme.primaryTeal, width: 1.5),
+                                    ),
+                                    errorBorder: OutlineInputBorder(
+                                      borderRadius: BorderRadius.circular(14),
+                                      borderSide: const BorderSide(color: Colors.redAccent),
+                                    ),
+                                    focusedErrorBorder: OutlineInputBorder(
+                                      borderRadius: BorderRadius.circular(14),
+                                      borderSide: const BorderSide(color: Colors.redAccent, width: 1.5),
+                                    ),
                                   ),
+                                  validator: (v) {
+                                    if (v == null || v.trim().isEmpty) return 'Please enter your full name';
+                                    return null;
+                                  },
                                 ),
-                                const SizedBox(height: 4),
-                                Text(
-                                  'Authenticate to sync telemetry with your medical team.',
-                                  style: GoogleFonts.inter(
-                                    fontSize: 12,
-                                    color: Colors.white54,
-                                  ),
-                                ),
-                                const SizedBox(height: 20),
+                                const SizedBox(height: 16),
 
-                                // Email Input
+                                // Email
                                 TextFormField(
                                   controller: _emailController,
                                   keyboardType: TextInputType.emailAddress,
@@ -236,21 +258,46 @@ class _AuthScreenState extends State<AuthScreen> with SingleTickerProviderStateM
                                     ),
                                   ),
                                   validator: (v) {
-                                    if (v == null || v.trim().isEmpty) return 'Please enter your email';
-                                    if (!v.contains('@')) return 'Please enter a valid email';
+                                    if (v == null || v.trim().isEmpty) return 'Please enter an email';
+                                    if (!v.contains('@') || !v.contains('.')) return 'Please enter a valid email address';
                                     return null;
                                   },
                                 ),
                                 const SizedBox(height: 16),
 
-                                // Password Input
+                                // Emergency Contact Phone
+                                TextFormField(
+                                  controller: _phoneController,
+                                  keyboardType: TextInputType.phone,
+                                  style: GoogleFonts.inter(color: Colors.white, fontSize: 14),
+                                  decoration: InputDecoration(
+                                    labelText: 'Emergency Contact Phone',
+                                    hintText: '+91 98765 43210',
+                                    hintStyle: const TextStyle(color: Colors.white30, fontSize: 13),
+                                    labelStyle: const TextStyle(color: Colors.white60, fontSize: 13),
+                                    prefixIcon: const Icon(Icons.contact_phone_outlined, color: AppTheme.primaryTeal, size: 20),
+                                    filled: true,
+                                    fillColor: const Color(0xFF0C101D),
+                                    enabledBorder: OutlineInputBorder(
+                                      borderRadius: BorderRadius.circular(14),
+                                      borderSide: BorderSide(color: Colors.white.withValues(alpha: 0.1)),
+                                    ),
+                                    focusedBorder: OutlineInputBorder(
+                                      borderRadius: BorderRadius.circular(14),
+                                      borderSide: const BorderSide(color: AppTheme.primaryTeal, width: 1.5),
+                                    ),
+                                  ),
+                                ),
+                                const SizedBox(height: 16),
+
+                                // Password
                                 TextFormField(
                                   controller: _passwordController,
                                   obscureText: _obscurePassword,
                                   style: GoogleFonts.inter(color: Colors.white, fontSize: 14),
                                   decoration: InputDecoration(
                                     labelText: 'Password',
-                                    hintText: 'Enter your password',
+                                    hintText: 'Minimum 6 characters',
                                     hintStyle: const TextStyle(color: Colors.white30, fontSize: 13),
                                     labelStyle: const TextStyle(color: Colors.white60, fontSize: 13),
                                     prefixIcon: const Icon(Icons.lock_outline_rounded, color: AppTheme.primaryTeal, size: 20),
@@ -282,7 +329,51 @@ class _AuthScreenState extends State<AuthScreen> with SingleTickerProviderStateM
                                     ),
                                   ),
                                   validator: (v) {
-                                    if (v == null || v.isEmpty) return 'Please enter your password';
+                                    if (v == null || v.isEmpty) return 'Please create a password';
+                                    if (v.length < 6) return 'Password must be at least 6 characters';
+                                    return null;
+                                  },
+                                ),
+                                const SizedBox(height: 16),
+
+                                // Confirm Password
+                                TextFormField(
+                                  controller: _confirmPasswordController,
+                                  obscureText: _obscureConfirmPassword,
+                                  style: GoogleFonts.inter(color: Colors.white, fontSize: 14),
+                                  decoration: InputDecoration(
+                                    labelText: 'Confirm Password',
+                                    labelStyle: const TextStyle(color: Colors.white60, fontSize: 13),
+                                    prefixIcon: const Icon(Icons.lock_reset_rounded, color: AppTheme.primaryTeal, size: 20),
+                                    suffixIcon: IconButton(
+                                      icon: Icon(
+                                        _obscureConfirmPassword ? Icons.visibility_off_outlined : Icons.visibility_outlined,
+                                        color: Colors.white54,
+                                        size: 20,
+                                      ),
+                                      onPressed: () => setState(() => _obscureConfirmPassword = !_obscureConfirmPassword),
+                                    ),
+                                    filled: true,
+                                    fillColor: const Color(0xFF0C101D),
+                                    enabledBorder: OutlineInputBorder(
+                                      borderRadius: BorderRadius.circular(14),
+                                      borderSide: BorderSide(color: Colors.white.withValues(alpha: 0.1)),
+                                    ),
+                                    focusedBorder: OutlineInputBorder(
+                                      borderRadius: BorderRadius.circular(14),
+                                      borderSide: const BorderSide(color: AppTheme.primaryTeal, width: 1.5),
+                                    ),
+                                    errorBorder: OutlineInputBorder(
+                                      borderRadius: BorderRadius.circular(14),
+                                      borderSide: const BorderSide(color: Colors.redAccent),
+                                    ),
+                                    focusedErrorBorder: OutlineInputBorder(
+                                      borderRadius: BorderRadius.circular(14),
+                                      borderSide: const BorderSide(color: Colors.redAccent, width: 1.5),
+                                    ),
+                                  ),
+                                  validator: (v) {
+                                    if (v != _passwordController.text) return 'Passwords do not match';
                                     return null;
                                   },
                                 ),
@@ -313,9 +404,9 @@ class _AuthScreenState extends State<AuthScreen> with SingleTickerProviderStateM
                                   const SizedBox(height: 16),
                                 ],
 
-                                // Primary Sign In Action
+                                // Submit Button
                                 ElevatedButton(
-                                  onPressed: auth.isBusy ? null : _submitSignIn,
+                                  onPressed: auth.isBusy ? null : _submitRegister,
                                   style: ElevatedButton.styleFrom(
                                     backgroundColor: AppTheme.primaryTeal,
                                     foregroundColor: Colors.black,
@@ -332,7 +423,7 @@ class _AuthScreenState extends State<AuthScreen> with SingleTickerProviderStateM
                                           child: CircularProgressIndicator(strokeWidth: 2, color: Colors.black),
                                         )
                                       : Text(
-                                          'ENTER HEALTH GATEWAY',
+                                          'COMPLETE REGISTRATION',
                                           style: GoogleFonts.inter(
                                             fontWeight: FontWeight.bold,
                                             letterSpacing: 1.0,
@@ -343,29 +434,20 @@ class _AuthScreenState extends State<AuthScreen> with SingleTickerProviderStateM
                               ],
                             ),
                           ),
-                          const SizedBox(height: 24),
+                          const SizedBox(height: 20),
 
-                          // Route to Dedicated Register Screen
+                          // Route Back to Sign In
                           Row(
                             mainAxisAlignment: MainAxisAlignment.center,
                             children: [
                               Text(
-                                "First time patient? ",
+                                'Already registered? ',
                                 style: GoogleFonts.inter(color: Colors.white60, fontSize: 13),
                               ),
                               GestureDetector(
-                                onTap: () {
-                                  Navigator.of(context).push(
-                                    PageRouteBuilder(
-                                      transitionDuration: const Duration(milliseconds: 350),
-                                      pageBuilder: (context, anim1, anim2) => const RegisterScreen(),
-                                      transitionsBuilder: (context, anim1, anim2, child) =>
-                                          FadeTransition(opacity: anim1, child: child),
-                                    ),
-                                  );
-                                },
+                                onTap: () => Navigator.of(context).pop(),
                                 child: Text(
-                                  'Register Band',
+                                  'Sign In',
                                   style: GoogleFonts.inter(
                                     color: AppTheme.primaryTeal,
                                     fontWeight: FontWeight.bold,
@@ -375,7 +457,7 @@ class _AuthScreenState extends State<AuthScreen> with SingleTickerProviderStateM
                               ),
                             ],
                           ),
-                          const SizedBox(height: 12),
+                          const SizedBox(height: 16),
                         ],
                       ),
                     ),

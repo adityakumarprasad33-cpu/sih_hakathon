@@ -20,6 +20,7 @@ class FirebaseConstants {
   static const String authSignInUrl = "https://identitytoolkit.googleapis.com/v1/accounts:signInWithPassword";
   static const String authSignUpUrl = "https://identitytoolkit.googleapis.com/v1/accounts:signUp";
   static const String tokenRefreshUrl = "https://securetoken.googleapis.com/v1/token";
+  static const String authUpdateProfileUrl = "https://identitytoolkit.googleapis.com/v1/accounts:update";
 }
 
 enum ConnectionStatus {

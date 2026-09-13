@@ -8,6 +8,7 @@ import 'package:samadhan_health/modules/guardian/wearable_guardian_service.dart'
 import 'package:samadhan_health/modules/risk/tiny_ml_risk_engine.dart';
 import 'package:samadhan_health/modules/sync/firebase_sync_service.dart';
 import 'package:samadhan_health/ui/screens/ai_companion_screen.dart';
+import 'package:samadhan_health/ui/screens/auth_screen.dart';
 import 'package:samadhan_health/ui/screens/device_pairing_screen.dart';
 import 'package:samadhan_health/ui/screens/emergency_sos_screen.dart';
 import 'package:samadhan_health/ui/screens/find_device_screen.dart';
@@ -99,7 +100,162 @@ class _HomeDashboardScreenState extends State<HomeDashboardScreen> {
     );
   }
 
-@override
+  void _showProfileModal(BuildContext context) {
+    final auth = context.read<AuthService>();
+    final ble = context.read<BleGatewayService>();
+    final user = auth.currentUser;
+
+    showModalBottomSheet(
+      context: context,
+      backgroundColor: const Color(0xFF131B2E),
+      shape: const RoundedRectangleBorder(
+        borderRadius: BorderRadius.vertical(top: Radius.circular(24)),
+      ),
+      builder: (ctx) {
+        return SafeArea(
+          child: Padding(
+            padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 20),
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              crossAxisAlignment: CrossAxisAlignment.stretch,
+              children: [
+                Row(
+                  children: [
+                    CircleAvatar(
+                      radius: 24,
+                      backgroundColor: AppTheme.primaryTeal.withValues(alpha: 0.2),
+                      child: Text(
+                        (user?.displayName.isNotEmpty == true ? user!.displayName[0] : 'P').toUpperCase(),
+                        style: GoogleFonts.outfit(
+                          fontSize: 20,
+                          fontWeight: FontWeight.bold,
+                          color: AppTheme.primaryTeal,
+                        ),
+                      ),
+                    ),
+                    const SizedBox(width: 14),
+                    Expanded(
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          Text(
+                            user?.displayName ?? 'Samadhan Patient',
+                            style: GoogleFonts.outfit(
+                              fontSize: 18,
+                              fontWeight: FontWeight.bold,
+                              color: Colors.white,
+                            ),
+                          ),
+                          Text(
+                            user?.email ?? '',
+                            style: GoogleFonts.inter(
+                              fontSize: 12,
+                              color: Colors.white60,
+                            ),
+                          ),
+                        ],
+                      ),
+                    ),
+                    Container(
+                      padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+                      decoration: BoxDecoration(
+                        color: AppTheme.primaryTeal.withValues(alpha: 0.15),
+                        borderRadius: BorderRadius.circular(8),
+                      ),
+                      child: Text(
+                        'PATIENT',
+                        style: GoogleFonts.jetBrainsMono(
+                          fontSize: 10,
+                          fontWeight: FontWeight.bold,
+                          color: AppTheme.primaryTeal,
+                        ),
+                      ),
+                    ),
+                  ],
+                ),
+                const SizedBox(height: 20),
+                const Divider(color: Colors.white12),
+                const SizedBox(height: 12),
+
+                // Emergency Contacts
+                Row(
+                  children: [
+                    const Icon(Icons.emergency_outlined, size: 18, color: Colors.redAccent),
+                    const SizedBox(width: 10),
+                    Text(
+                      'Emergency Contact:',
+                      style: GoogleFonts.inter(color: Colors.white70, fontSize: 13),
+                    ),
+                    const Spacer(),
+                    Text(
+                      user?.emergencyContacts.isNotEmpty == true ? user!.emergencyContacts.first : 'None',
+                      style: GoogleFonts.jetBrainsMono(color: Colors.white, fontSize: 13, fontWeight: FontWeight.w600),
+                    ),
+                  ],
+                ),
+                const SizedBox(height: 12),
+
+                // Paired Hardware
+                Row(
+                  children: [
+                    const Icon(Icons.watch_rounded, size: 18, color: AppTheme.primaryTeal),
+                    const SizedBox(width: 10),
+                    Text(
+                      'Paired Band:',
+                      style: GoogleFonts.inter(color: Colors.white70, fontSize: 13),
+                    ),
+                    const Spacer(),
+                    Text(
+                      ble.connectedDevice?.platformName.isNotEmpty == true
+                          ? ble.connectedDevice!.platformName
+                          : (ble.lastPairedDeviceId != null && ble.lastPairedDeviceId!.length >= 8
+                              ? 'ID: ${ble.lastPairedDeviceId!.substring(0, 8)}...'
+                              : 'None'),
+                      style: GoogleFonts.jetBrainsMono(color: Colors.white, fontSize: 13, fontWeight: FontWeight.w600),
+                    ),
+                  ],
+                ),
+                const SizedBox(height: 24),
+
+                // Logout Action
+                OutlinedButton.icon(
+                  onPressed: () async {
+                    Navigator.pop(ctx);
+                    ble.disconnectDevice();
+                    await auth.signOut();
+                    if (context.mounted) {
+                      Navigator.of(context).pushAndRemoveUntil(
+                        PageRouteBuilder(
+                          transitionDuration: const Duration(milliseconds: 500),
+                          pageBuilder: (context, anim1, anim2) => const AuthScreen(),
+                          transitionsBuilder: (context, anim1, anim2, child) => FadeTransition(opacity: anim1, child: child),
+                        ),
+                        (route) => false,
+                      );
+                    }
+                  },
+                  icon: const Icon(Icons.logout_rounded, size: 18, color: Colors.redAccent),
+                  label: Text(
+                    'SIGN OUT OF GATEWAY',
+                    style: GoogleFonts.inter(fontWeight: FontWeight.bold, fontSize: 12, letterSpacing: 0.8),
+                  ),
+                  style: OutlinedButton.styleFrom(
+                    foregroundColor: Colors.redAccent,
+                    side: const BorderSide(color: Colors.redAccent),
+                    padding: const EdgeInsets.symmetric(vertical: 14),
+                    shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+                  ),
+                ),
+              ],
+            ),
+          ),
+        );
+      },
+    );
+  }
+
+
+  @override
   Widget build(BuildContext context) {
     final auth = context.watch<AuthService>();
     final ble = context.watch<BleGatewayService>();
@@ -192,6 +348,24 @@ class _HomeDashboardScreenState extends State<HomeDashboardScreen> {
                 MaterialPageRoute(builder: (_) => const DevicePairingScreen()),
               );
             },
+          ),
+
+          // Profile & Settings
+          IconButton(
+            icon: CircleAvatar(
+              radius: 14,
+              backgroundColor: AppTheme.primaryTeal.withValues(alpha: 0.15),
+              child: Text(
+                (user?.displayName.isNotEmpty == true ? user!.displayName[0] : 'P').toUpperCase(),
+                style: GoogleFonts.outfit(
+                  fontSize: 12,
+                  fontWeight: FontWeight.bold,
+                  color: AppTheme.primaryTeal,
+                ),
+              ),
+            ),
+            tooltip: 'Patient Profile',
+            onPressed: () => _showProfileModal(context),
           ),
         ],
       ),
