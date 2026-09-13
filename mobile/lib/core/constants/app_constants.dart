@@ -1,3 +1,11 @@
+class LlmConstants {
+  // Production Modal LLM Endpoint
+  static const String defaultLlmUrl = "https://prasadaditya666--samadhan-health-api-api-endpoint.modal.run";
+  static const int requestTimeoutSeconds = 12;
+  static const String maintenanceMessage =
+      "AI Doctor is currently under maintenance. Our clinical intelligence service is undergoing scheduled updates. Please check back shortly. Your continuous wearable vitals tracking and emergency fall protection remain fully active.";
+}
+
 class BleConstants {
   // Samadhan Wearable Custom ESP32 GATT Service UUIDs
   static const String serviceUuid = "6E400001-B5A3-F393-E0A9-E50E24DCCA9E";

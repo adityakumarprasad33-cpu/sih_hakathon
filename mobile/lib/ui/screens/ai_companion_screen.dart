@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:google_fonts/google_fonts.dart';
 import 'package:provider/provider.dart';
 import 'package:samadhan_health/core/theme/app_theme.dart';
 import 'package:samadhan_health/modules/ai/samadhan_ai_service.dart';
@@ -51,12 +52,48 @@ class _AiCompanionScreenState extends State<AiCompanionScreen> {
     final packet = ble.latestPacket;
 
     return Scaffold(
+      backgroundColor: const Color(0xFF090C15),
       appBar: AppBar(
-        title: const Text('SAMADHAN AI COMPANION'),
+        backgroundColor: const Color(0xFF121727),
+        elevation: 0,
+        title: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Text(
+              'SAMADHAN AI DOCTOR',
+              style: GoogleFonts.outfit(
+                fontSize: 16,
+                fontWeight: FontWeight.bold,
+                letterSpacing: 1.5,
+                color: Colors.white,
+              ),
+            ),
+            Row(
+              children: [
+                Container(
+                  width: 6,
+                  height: 6,
+                  decoration: const BoxDecoration(
+                    color: AppTheme.primaryTeal,
+                    shape: BoxShape.circle,
+                  ),
+                ),
+                const SizedBox(width: 6),
+                Text(
+                  'Connected to Clinical LLM API',
+                  style: GoogleFonts.inter(
+                    fontSize: 10,
+                    color: Colors.white54,
+                  ),
+                ),
+              ],
+            ),
+          ],
+        ),
         actions: [
           IconButton(
-            icon: const Icon(Icons.cleaning_services_rounded, size: 20),
-            tooltip: 'Clear Chat',
+            icon: const Icon(Icons.cleaning_services_rounded, size: 20, color: Colors.white70),
+            tooltip: 'Clear Chat History',
             onPressed: ai.clearHistory,
           ),
         ],
@@ -64,33 +101,28 @@ class _AiCompanionScreenState extends State<AiCompanionScreen> {
       body: SafeArea(
         child: Column(
           children: [
-            // Context Banner
+            // Live Telemetry Context Banner
             Container(
-              padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
-              color: AppTheme.surface,
+              padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 10),
+              decoration: BoxDecoration(
+                color: const Color(0xFF101524),
+                border: Border(bottom: BorderSide(color: Colors.white.withValues(alpha: 0.08))),
+              ),
               child: Row(
-                mainAxisAlignment: MainAxisAlignment.spaceBetween,
                 children: [
-                  Row(
-                    children: [
-                      const Icon(Icons.sensors, color: AppTheme.primary, size: 16),
-                      const SizedBox(width: 6),
-                      Text(
-                        'Live Context: ${packet?.heartRate ?? 72} BPM • SpO2 ${packet?.spo2 ?? 98.2}% • ${packet?.temperature ?? 26.4}°C',
-                        style: const TextStyle(
-                          color: AppTheme.textSecondary,
-                          fontSize: 12,
-                          fontWeight: FontWeight.w600,
-                        ),
+                  const Icon(Icons.sensors_rounded, color: AppTheme.primaryTeal, size: 16),
+                  const SizedBox(width: 8),
+                  Expanded(
+                    child: Text(
+                      packet != null
+                          ? '${packet.heartRate ?? "--"} BPM • SpO2 ${packet.spo2?.toStringAsFixed(1) ?? "--"}% • ${packet.temperature?.toStringAsFixed(1) ?? "--"}°C • Risk: ${packet.riskLevel.name.toUpperCase()}'
+                          : 'Awaiting Wearable Telemetry Stream (Band Idle)',
+                      style: GoogleFonts.jetBrainsMono(
+                        color: Colors.white70,
+                        fontSize: 11,
+                        fontWeight: FontWeight.w600,
                       ),
-                    ],
-                  ),
-                  Container(
-                    width: 8,
-                    height: 8,
-                    decoration: const BoxDecoration(
-                      color: AppTheme.success,
-                      shape: BoxShape.circle,
+                      overflow: TextOverflow.ellipsis,
                     ),
                   ),
                 ],
@@ -101,58 +133,114 @@ class _AiCompanionScreenState extends State<AiCompanionScreen> {
             Expanded(
               child: ListView.builder(
                 controller: _scrollController,
-                padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
+                padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
                 itemCount: ai.messages.length,
                 itemBuilder: (context, index) {
                   final msg = ai.messages[index];
+
+                  if (msg.isUser) {
+                    return Align(
+                      alignment: Alignment.centerRight,
+                      child: Container(
+                        margin: const EdgeInsets.symmetric(vertical: 6),
+                        padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
+                        constraints: BoxConstraints(
+                          maxWidth: MediaQuery.of(context).size.width * 0.80,
+                        ),
+                        decoration: BoxDecoration(
+                          color: AppTheme.primaryTeal,
+                          borderRadius: BorderRadius.circular(18).copyWith(
+                            bottomRight: const Radius.circular(2),
+                          ),
+                        ),
+                        child: Text(
+                          msg.text,
+                          style: GoogleFonts.inter(
+                            color: Colors.black,
+                            fontSize: 14,
+                            fontWeight: FontWeight.w500,
+                            height: 1.35,
+                          ),
+                        ),
+                      ),
+                    );
+                  }
+
+                  // AI Response or Maintenance Notice
+                  final isMaintenance = msg.isMaintenance;
+
                   return Align(
-                    alignment: msg.isUser ? Alignment.centerRight : Alignment.centerLeft,
+                    alignment: Alignment.centerLeft,
                     child: Container(
                       margin: const EdgeInsets.symmetric(vertical: 6),
-                      padding: const EdgeInsets.all(14),
+                      padding: const EdgeInsets.all(16),
                       constraints: BoxConstraints(
-                        maxWidth: MediaQuery.of(context).size.width * 0.82,
+                        maxWidth: MediaQuery.of(context).size.width * 0.85,
                       ),
                       decoration: BoxDecoration(
-                        color: msg.isUser ? AppTheme.primary : AppTheme.surface,
-                        borderRadius: BorderRadius.circular(16).copyWith(
-                          bottomRight: msg.isUser ? const Radius.circular(0) : const Radius.circular(16),
-                          bottomLeft: !msg.isUser ? const Radius.circular(0) : const Radius.circular(16),
+                        color: isMaintenance
+                            ? Colors.amber.withValues(alpha: 0.10)
+                            : const Color(0xFF131829),
+                        borderRadius: BorderRadius.circular(18).copyWith(
+                          bottomLeft: const Radius.circular(2),
                         ),
                         border: Border.all(
-                          color: msg.isUser
-                              ? AppTheme.primary
-                              : (msg.urgency == 'CRITICAL' ? AppTheme.danger : AppTheme.border),
+                          color: isMaintenance
+                              ? Colors.amber.withValues(alpha: 0.4)
+                              : (msg.urgency == 'CRITICAL'
+                                  ? Colors.redAccent.withValues(alpha: 0.5)
+                                  : Colors.white.withValues(alpha: 0.08)),
+                          width: isMaintenance ? 1.5 : 1.0,
                         ),
                       ),
                       child: Column(
                         crossAxisAlignment: CrossAxisAlignment.start,
                         children: [
-                          if (!msg.isUser && msg.urgency != null) ...[
-                            Container(
-                              margin: const EdgeInsets.only(bottom: 6),
-                              padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
-                              decoration: BoxDecoration(
-                                color: (msg.urgency == 'CRITICAL' ? AppTheme.danger : AppTheme.primary)
-                                    .withOpacity(0.15),
-                                borderRadius: BorderRadius.circular(6),
+                          Row(
+                            mainAxisSize: MainAxisSize.min,
+                            children: [
+                              Icon(
+                                isMaintenance
+                                    ? Icons.build_circle_outlined
+                                    : (msg.urgency == 'CRITICAL'
+                                        ? Icons.warning_amber_rounded
+                                        : Icons.psychology_rounded),
+                                color: isMaintenance
+                                    ? Colors.amber
+                                    : (msg.urgency == 'CRITICAL' ? Colors.redAccent : AppTheme.primaryTeal),
+                                size: 16,
                               ),
-                              child: Text(
-                                msg.urgency!,
-                                style: TextStyle(
-                                  color: msg.urgency == 'CRITICAL' ? AppTheme.danger : AppTheme.primary,
-                                  fontSize: 10,
-                                  fontWeight: FontWeight.w800,
+                              const SizedBox(width: 6),
+                              Container(
+                                padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
+                                decoration: BoxDecoration(
+                                  color: (isMaintenance
+                                          ? Colors.amber
+                                          : (msg.urgency == 'CRITICAL' ? Colors.redAccent : AppTheme.primaryTeal))
+                                      .withValues(alpha: 0.15),
+                                  borderRadius: BorderRadius.circular(6),
+                                ),
+                                child: Text(
+                                  isMaintenance ? 'MAINTENANCE IN PROGRESS' : (msg.urgency ?? 'CLINICAL AI'),
+                                  style: GoogleFonts.jetBrainsMono(
+                                    color: isMaintenance
+                                        ? Colors.amber
+                                        : (msg.urgency == 'CRITICAL' ? Colors.redAccent : AppTheme.primaryTeal),
+                                    fontSize: 9,
+                                    fontWeight: FontWeight.bold,
+                                    letterSpacing: 0.8,
+                                  ),
                                 ),
                               ),
-                            ),
-                          ],
+                            ],
+                          ),
+                          const SizedBox(height: 10),
                           Text(
                             msg.text,
-                            style: TextStyle(
-                              color: msg.isUser ? Colors.black : AppTheme.textPrimary,
-                              fontSize: 14,
-                              height: 1.4,
+                            style: GoogleFonts.inter(
+                              color: isMaintenance ? const Color(0xFFFFF0D0) : Colors.white,
+                              fontSize: 13.5,
+                              height: 1.45,
                             ),
                           ),
                         ],
@@ -164,62 +252,77 @@ class _AiCompanionScreenState extends State<AiCompanionScreen> {
             ),
 
             if (ai.isLoading) ...[
-              const Padding(
-                padding: EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+              Padding(
+                padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 8),
                 child: Row(
                   children: [
-                    SizedBox(
+                    const SizedBox(
                       width: 14,
                       height: 14,
-                      child: CircularProgressIndicator(strokeWidth: 2, color: AppTheme.primary),
+                      child: CircularProgressIndicator(strokeWidth: 2, color: AppTheme.primaryTeal),
                     ),
-                    SizedBox(width: 8),
+                    const SizedBox(width: 10),
                     Text(
-                      'Analyzing clinical context...',
-                      style: TextStyle(color: AppTheme.textMuted, fontSize: 12),
+                      'Querying Modal clinical LLM API...',
+                      style: GoogleFonts.inter(color: Colors.white54, fontSize: 12),
                     ),
                   ],
                 ),
               ),
             ],
 
-            // Suggestion Chips
+            // Clinical Suggestion Chips
             SingleChildScrollView(
               scrollDirection: Axis.horizontal,
-              padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 6),
+              padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 8),
               child: Row(
                 children: [
-                  _Chip(label: 'Explain heart rate', onTap: () => _sendMessage('Explain my heart rate')),
-                  _Chip(label: 'Is SpO2 98% normal?', onTap: () => _sendMessage('Is my SpO2 level healthy?')),
-                  _Chip(label: 'Check fall risk', onTap: () => _sendMessage('What is my fall detection risk?')),
+                  _Chip(label: 'Explain heart rate', onTap: () => _sendMessage('Explain my current heart rate and rhythm')),
+                  _Chip(label: 'Analyze SpO2 level', onTap: () => _sendMessage('Is my blood oxygen saturation normal?')),
+                  _Chip(label: 'Assess fall risk', onTap: () => _sendMessage('What is my current fall detection and IMU status?')),
                 ],
               ),
             ),
 
             // Input Bar
             Container(
-              padding: const EdgeInsets.all(12),
-              color: AppTheme.surface,
+              padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
+              decoration: BoxDecoration(
+                color: const Color(0xFF121727),
+                border: Border(top: BorderSide(color: Colors.white.withValues(alpha: 0.08))),
+              ),
               child: Row(
                 children: [
                   Expanded(
                     child: TextField(
                       controller: _controller,
                       onSubmitted: (_) => _sendMessage(),
-                      decoration: const InputDecoration(
-                        hintText: 'Ask your health AI companion...',
-                        contentPadding: EdgeInsets.symmetric(horizontal: 16, vertical: 12),
+                      style: GoogleFonts.inter(color: Colors.white, fontSize: 14),
+                      decoration: InputDecoration(
+                        hintText: 'Ask Samadhan AI Doctor...',
+                        hintStyle: const TextStyle(color: Colors.white38, fontSize: 13),
+                        filled: true,
+                        fillColor: const Color(0xFF0C101D),
+                        contentPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
+                        enabledBorder: OutlineInputBorder(
+                          borderRadius: BorderRadius.circular(16),
+                          borderSide: BorderSide(color: Colors.white.withValues(alpha: 0.1)),
+                        ),
+                        focusedBorder: OutlineInputBorder(
+                          borderRadius: BorderRadius.circular(16),
+                          borderSide: const BorderSide(color: AppTheme.primaryTeal, width: 1.5),
+                        ),
                       ),
                     ),
                   ),
                   const SizedBox(width: 10),
                   Container(
                     decoration: BoxDecoration(
-                      color: AppTheme.primary,
-                      borderRadius: BorderRadius.circular(12),
+                      color: AppTheme.primaryTeal,
+                      borderRadius: BorderRadius.circular(14),
                     ),
                     child: IconButton(
-                      icon: const Icon(Icons.arrow_upward_rounded, color: Colors.black),
+                      icon: const Icon(Icons.arrow_upward_rounded, color: Colors.black, size: 20),
                       onPressed: () => _sendMessage(),
                     ),
                   ),
@@ -245,10 +348,10 @@ class _Chip extends StatelessWidget {
       padding: const EdgeInsets.only(right: 8),
       child: ActionChip(
         label: Text(label),
-        labelStyle: const TextStyle(color: AppTheme.textPrimary, fontSize: 12),
-        backgroundColor: AppTheme.surfaceLight,
-        side: const BorderSide(color: AppTheme.border),
-        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
+        labelStyle: GoogleFonts.inter(color: Colors.white70, fontSize: 11, fontWeight: FontWeight.w500),
+        backgroundColor: const Color(0xFF131829),
+        side: BorderSide(color: Colors.white.withValues(alpha: 0.1)),
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
         onPressed: onTap,
       ),
     );
