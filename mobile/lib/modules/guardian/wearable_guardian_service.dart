@@ -25,6 +25,7 @@ class WearableGuardianService extends ChangeNotifier {
   int _lastRssi = -65;
   ProximityBand _proximityBand = ProximityBand.immediate;
   DateTime _lastPacketTime = DateTime.now();
+  DateTime get lastPacketTime => _lastPacketTime;
 
   // Wrist Wearable State
   bool _isWristWorn = true;
@@ -43,6 +44,10 @@ class WearableGuardianService extends ChangeNotifier {
   // Snooze Timestamps (Epoch ms)
   final Map<GuardianAlertType, int> _snoozeExpirations = {};
 
+  // GPS Coordinates for Emergency SOS
+  double? _currentLatitude;
+  double? _currentLongitude;
+
   // Permission states
   bool _hasLocationPermission = false;
   bool _hasBluetoothPermission = false;
@@ -54,6 +59,8 @@ class WearableGuardianService extends ChangeNotifier {
   bool get isWristWorn => _isWristWorn;
   bool get isCharging => _isCharging;
   int get batteryLevel => _batteryLevel;
+  double? get currentLatitude => _currentLatitude;
+  double? get currentLongitude => _currentLongitude;
   bool get hasLocationPermission => _hasLocationPermission;
   bool get hasBluetoothPermission => _hasBluetoothPermission;
 
@@ -70,6 +77,25 @@ class WearableGuardianService extends ChangeNotifier {
   }
 
   /// Check & request location & BLE permissions for proximity tracking
+  /// Fetch real-time GPS position for Emergency SOS payload
+  Future<void> updateCurrentPosition() async {
+    try {
+      if (_hasLocationPermission) {
+        final pos = await Geolocator.getCurrentPosition(
+          locationSettings: const LocationSettings(
+            accuracy: LocationAccuracy.high,
+            timeLimit: Duration(seconds: 5),
+          ),
+        );
+        _currentLatitude = pos.latitude;
+        _currentLongitude = pos.longitude;
+        notifyListeners();
+      }
+    } catch (_) {
+      // Handled gracefully if location service disabled or timed out
+    }
+  }
+
   Future<void> checkPermissions() async {
     try {
       final locStatus = await Geolocator.checkPermission();
@@ -77,6 +103,9 @@ class WearableGuardianService extends ChangeNotifier {
           locStatus == LocationPermission.whileInUse;
       _hasBluetoothPermission = true;
       notifyListeners();
+      if (_hasLocationPermission) {
+        unawaited(updateCurrentPosition());
+      }
     } catch (_) {
       // Graceful fallback for test runner or headless environments
     }
@@ -147,7 +176,7 @@ class WearableGuardianService extends ChangeNotifier {
     // 3. Charging Status & Low Battery
     if (_isCharging) {
       _alertLowBatteryActive = false;
-      _chargingStatusMessage = '⚡ Docked & Charging (${_batteryLevel}%)';
+      _chargingStatusMessage = '⚡ Docked & Charging ($_batteryLevel%)';
     } else {
       _chargingStatusMessage = null;
       if (_batteryLevel <= 20 && !isSnoozed(GuardianAlertType.lowBattery)) {

@@ -17,7 +17,6 @@ void main() {
     final sync = FirebaseSyncService();
     final guardian = WearableGuardianService(checkPermissionsOnInit: false);
     final ble = BleGatewayService(sync);
-    ble.stopSimulation();
 
     await tester.pumpWidget(
       MultiProvider(

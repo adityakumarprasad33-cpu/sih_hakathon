@@ -99,129 +99,7 @@ class _HomeDashboardScreenState extends State<HomeDashboardScreen> {
     );
   }
 
-  void _showSimulationControls(BuildContext context) {
-    final ble = context.read<BleGatewayService>();
-
-    showModalBottomSheet(
-      context: context,
-      backgroundColor: const Color(0xFF131B2E),
-      shape: const RoundedRectangleBorder(
-        borderRadius: BorderRadius.vertical(top: Radius.circular(24)),
-      ),
-      builder: (ctx) {
-        return SafeArea(
-          child: Padding(
-            padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 20),
-            child: Column(
-              mainAxisSize: MainAxisSize.min,
-              crossAxisAlignment: CrossAxisAlignment.stretch,
-              children: [
-                Text(
-                  'Hardware Simulation Controls',
-                  style: GoogleFonts.outfit(
-                    fontSize: 18,
-                    fontWeight: FontWeight.bold,
-                    color: Colors.white,
-                  ),
-                ),
-                const SizedBox(height: 6),
-                const Text(
-                  'Trigger edge hardware events to test guardian alerts and TinyML risk states.',
-                  style: TextStyle(fontSize: 12, color: Colors.white54),
-                ),
-                const SizedBox(height: 16),
-                Row(
-                  children: [
-                    Expanded(
-                      child: ElevatedButton.icon(
-                        onPressed: () {
-                          ble.simulateTakeOffWrist();
-                          Navigator.pop(ctx);
-                        },
-                        icon: const Icon(Icons.pan_tool_outlined, size: 16),
-                        label: const Text('Take Off Wrist'),
-                        style: ElevatedButton.styleFrom(backgroundColor: Colors.amber[800]),
-                      ),
-                    ),
-                    const SizedBox(width: 8),
-                    Expanded(
-                      child: ElevatedButton.icon(
-                        onPressed: () {
-                          ble.simulatePutOnWrist();
-                          Navigator.pop(ctx);
-                        },
-                        icon: const Icon(Icons.check_circle_outline, size: 16),
-                        label: const Text('Put On Wrist'),
-                        style: ElevatedButton.styleFrom(backgroundColor: AppTheme.primaryTeal, foregroundColor: Colors.black),
-                      ),
-                    ),
-                  ],
-                ),
-                const SizedBox(height: 8),
-                Row(
-                  children: [
-                    Expanded(
-                      child: ElevatedButton.icon(
-                        onPressed: () {
-                          ble.simulateMoveAway();
-                          Navigator.pop(ctx);
-                        },
-                        icon: const Icon(Icons.arrow_forward_rounded, size: 16),
-                        label: const Text('Move Far (>8m)'),
-                        style: ElevatedButton.styleFrom(backgroundColor: Colors.deepOrange),
-                      ),
-                    ),
-                    const SizedBox(width: 8),
-                    Expanded(
-                      child: ElevatedButton.icon(
-                        onPressed: () {
-                          ble.simulateMoveClose();
-                          Navigator.pop(ctx);
-                        },
-                        icon: const Icon(Icons.near_me_rounded, size: 16),
-                        label: const Text('Move Close (<1m)'),
-                        style: ElevatedButton.styleFrom(backgroundColor: AppTheme.accentBlue),
-                      ),
-                    ),
-                  ],
-                ),
-                const SizedBox(height: 8),
-                Row(
-                  children: [
-                    Expanded(
-                      child: ElevatedButton.icon(
-                        onPressed: () {
-                          ble.simulateToggleCharging();
-                          Navigator.pop(ctx);
-                        },
-                        icon: const Icon(Icons.bolt_rounded, size: 16),
-                        label: const Text('Toggle Charging'),
-                        style: ElevatedButton.styleFrom(backgroundColor: Colors.purple[700]),
-                      ),
-                    ),
-                    const SizedBox(width: 8),
-                    Expanded(
-                      child: ElevatedButton.icon(
-                        onPressed: () {
-                          ble.simulateEmergencyFall();
-                          Navigator.pop(ctx);
-                        },
-                        icon: const Icon(Icons.warning_amber_rounded, size: 16),
-                        label: const Text('Simulate Fall'),
-                        style: ElevatedButton.styleFrom(backgroundColor: Colors.red[700]),
-                      ),
-                    ),
-                  ],
-                ),
-              ],
-            ),
-          ),
-        );
-      },
-    );
-  }
-
-  @override
+@override
   Widget build(BuildContext context) {
     final auth = context.watch<AuthService>();
     final ble = context.watch<BleGatewayService>();
@@ -303,12 +181,7 @@ class _HomeDashboardScreenState extends State<HomeDashboardScreen> {
               );
             },
           ),
-          // Hardware Simulation Controls
-          IconButton(
-            icon: const Icon(Icons.science_outlined, color: Colors.white70),
-            tooltip: 'Test Hardware Events',
-            onPressed: () => _showSimulationControls(context),
-          ),
+
           // Pairing screen
           IconButton(
             icon: const Icon(Icons.bluetooth_searching_rounded, color: Colors.white70),
@@ -333,90 +206,143 @@ class _HomeDashboardScreenState extends State<HomeDashboardScreen> {
             padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 12),
             children: [
               // 1. Wearable Top Status Header Bar (Charging, Proximity, Wrist)
-              Container(
-                padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
-                decoration: BoxDecoration(
-                  color: const Color(0xFF131B2E),
-                  borderRadius: BorderRadius.circular(16),
-                  border: Border.all(color: Colors.white12),
-                ),
-                child: Row(
-                  mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                  children: [
-                    // Battery & Charging State
-                    Row(
+              if (!ble.isConnected) ...[
+                InkWell(
+                  onTap: () {
+                    Navigator.push(
+                      context,
+                      MaterialPageRoute(builder: (_) => const DevicePairingScreen()),
+                    );
+                  },
+                  child: Container(
+                    padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
+                    decoration: BoxDecoration(
+                      color: const Color(0xFF131B2E),
+                      borderRadius: BorderRadius.circular(16),
+                      border: Border.all(color: Colors.white12),
+                    ),
+                    child: Row(
                       children: [
-                        Icon(
-                          guardian.isCharging ? Icons.bolt_rounded : Icons.battery_charging_full_rounded,
-                          color: guardian.isCharging ? AppTheme.primaryTeal : (guardian.batteryLevel < 20 ? Colors.redAccent : Colors.white70),
-                          size: 18,
-                        ),
-                        const SizedBox(width: 6),
-                        Text(
-                          guardian.isCharging ? '⚡ ${guardian.batteryLevel}% Charging' : '${guardian.batteryLevel}%',
-                          style: GoogleFonts.inter(
-                            fontSize: 12,
-                            fontWeight: FontWeight.w600,
-                            color: Colors.white,
+                        Container(
+                          width: 8,
+                          height: 8,
+                          decoration: const BoxDecoration(
+                            shape: BoxShape.circle,
+                            color: Colors.orange,
                           ),
                         ),
+                        const SizedBox(width: 10),
+                        Expanded(
+                          child: Column(
+                            crossAxisAlignment: CrossAxisAlignment.start,
+                            children: [
+                              Text(
+                                'NO WEARABLE CONNECTED',
+                                style: GoogleFonts.outfit(
+                                  fontSize: 12,
+                                  fontWeight: FontWeight.bold,
+                                  letterSpacing: 0.8,
+                                  color: Colors.white,
+                                ),
+                              ),
+                              const Text(
+                                'Tap to scan and pair your Samadhan Band via Bluetooth Low Energy.',
+                                style: TextStyle(fontSize: 11, color: Colors.white54),
+                              ),
+                            ],
+                          ),
+                        ),
+                        const Icon(Icons.arrow_forward_ios_rounded, size: 14, color: AppTheme.primaryTeal),
                       ],
                     ),
-
-                    // Proximity Distance to Band
-                    InkWell(
-                      onTap: () {
-                        Navigator.push(
-                          context,
-                          MaterialPageRoute(builder: (_) => const FindDeviceScreen()),
-                        );
-                      },
-                      child: Container(
-                        padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
-                        decoration: BoxDecoration(
-                          color: Colors.white.withOpacity(0.06),
-                          borderRadius: BorderRadius.circular(12),
-                          border: Border.all(color: Colors.white12),
-                        ),
-                        child: Row(
-                          children: [
-                            const Icon(Icons.radar_rounded, size: 14, color: AppTheme.primaryTeal),
-                            const SizedBox(width: 6),
-                            Text(
-                              '~${guardian.estimatedDistance.toStringAsFixed(1)}m away',
-                              style: GoogleFonts.jetBrainsMono(
-                                fontSize: 11,
-                                color: AppTheme.primaryTeal,
-                                fontWeight: FontWeight.bold,
-                              ),
+                  ),
+                ),
+              ] else ...[
+                Container(
+                  padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
+                  decoration: BoxDecoration(
+                    color: const Color(0xFF131B2E),
+                    borderRadius: BorderRadius.circular(16),
+                    border: Border.all(color: AppTheme.primaryTeal.withOpacity(0.3)),
+                  ),
+                  child: Row(
+                    mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                    children: [
+                      // Battery & Charging State
+                      Row(
+                        children: [
+                          Icon(
+                            guardian.isCharging ? Icons.bolt_rounded : Icons.battery_charging_full_rounded,
+                            color: guardian.isCharging ? AppTheme.primaryTeal : (guardian.batteryLevel < 20 ? Colors.redAccent : Colors.white70),
+                            size: 18,
+                          ),
+                          const SizedBox(width: 6),
+                          Text(
+                            guardian.isCharging ? '⚡ ${guardian.batteryLevel}% Charging' : '${guardian.batteryLevel}%',
+                            style: GoogleFonts.inter(
+                              fontSize: 12,
+                              fontWeight: FontWeight.w600,
+                              color: Colors.white,
                             ),
-                          ],
+                          ),
+                        ],
+                      ),
+
+                      // Proximity Distance to Band
+                      InkWell(
+                        onTap: () {
+                          Navigator.push(
+                            context,
+                            MaterialPageRoute(builder: (_) => const FindDeviceScreen()),
+                          );
+                        },
+                        child: Container(
+                          padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
+                          decoration: BoxDecoration(
+                            color: Colors.white.withOpacity(0.06),
+                            borderRadius: BorderRadius.circular(12),
+                            border: Border.all(color: Colors.white12),
+                          ),
+                          child: Row(
+                            children: [
+                              const Icon(Icons.radar_rounded, size: 14, color: AppTheme.primaryTeal),
+                              const SizedBox(width: 6),
+                              Text(
+                                '~${guardian.estimatedDistance.toStringAsFixed(1)}m away',
+                                style: GoogleFonts.jetBrainsMono(
+                                  fontSize: 11,
+                                  color: AppTheme.primaryTeal,
+                                  fontWeight: FontWeight.bold,
+                                ),
+                              ),
+                            ],
+                          ),
                         ),
                       ),
-                    ),
 
-                    // Wrist Contact State
-                    Row(
-                      children: [
-                        Icon(
-                          guardian.isWristWorn ? Icons.how_to_reg_rounded : Icons.person_off_rounded,
-                          size: 16,
-                          color: guardian.isWristWorn ? AppTheme.primaryTeal : Colors.amber,
-                        ),
-                        const SizedBox(width: 6),
-                        Text(
-                          guardian.isWristWorn ? 'On Wrist' : 'Off Wrist',
-                          style: GoogleFonts.inter(
-                            fontSize: 11,
-                            color: guardian.isWristWorn ? Colors.white70 : Colors.amber,
-                            fontWeight: FontWeight.w500,
+                      // Wrist Contact State
+                      Row(
+                        children: [
+                          Icon(
+                            guardian.isWristWorn ? Icons.how_to_reg_rounded : Icons.person_off_rounded,
+                            size: 16,
+                            color: guardian.isWristWorn ? AppTheme.primaryTeal : Colors.amber,
                           ),
-                        ),
-                      ],
-                    ),
-                  ],
+                          const SizedBox(width: 6),
+                          Text(
+                            guardian.isWristWorn ? 'On Wrist' : 'Off Wrist',
+                            style: GoogleFonts.inter(
+                              fontSize: 11,
+                              color: guardian.isWristWorn ? Colors.white70 : Colors.amber,
+                              fontWeight: FontWeight.w500,
+                            ),
+                          ),
+                        ],
+                      ),
+                    ],
+                  ),
                 ),
-              ),
+              ],
 
               const SizedBox(height: 12),
 

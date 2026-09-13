@@ -4,6 +4,7 @@ import 'package:provider/provider.dart';
 import 'package:samadhan_health/core/theme/app_theme.dart';
 import 'package:samadhan_health/modules/ble/ble_gateway_service.dart';
 import 'package:samadhan_health/modules/guardian/wearable_guardian_service.dart';
+import 'package:samadhan_health/ui/screens/device_pairing_screen.dart';
 
 class FindDeviceScreen extends StatefulWidget {
   const FindDeviceScreen({Key? key}) : super(key: key);
@@ -37,19 +38,26 @@ class _FindDeviceScreenState extends State<FindDeviceScreen> with SingleTickerPr
       _isRinging = true;
     });
 
-    await ble.triggerFindDeviceBuzzer();
+    final success = await ble.triggerFindDeviceBuzzer();
 
     if (mounted) {
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(
           content: Row(
-            children: const [
-              Icon(Icons.volume_up_rounded, color: Colors.white),
-              SizedBox(width: 10),
-              Text('Band buzzer triggered! Listen for audio chime.'),
+            children: [
+              Icon(
+                success ? Icons.volume_up_rounded : Icons.info_outline_rounded,
+                color: Colors.white,
+              ),
+              const SizedBox(width: 10),
+              Text(
+                success
+                    ? 'Band buzzer command transmitted to ESP32-S3!'
+                    : 'Device not reachable to ring buzzer.',
+              ),
             ],
           ),
-          backgroundColor: AppTheme.primaryTeal,
+          backgroundColor: success ? AppTheme.primaryTeal : Colors.redAccent,
           duration: const Duration(seconds: 2),
         ),
       );
@@ -71,10 +79,10 @@ class _FindDeviceScreenState extends State<FindDeviceScreen> with SingleTickerPr
   }
 
   String _getProximityLabel(double distance) {
-    if (distance < 1.5) return 'Very Close • Within Reach';
+    if (distance < 1.5) return 'Very Close • Within Immediate Reach';
     if (distance < 5.0) return 'Nearby • In Same Room';
     if (distance < 8.0) return 'Far • Walking Away';
-    return 'Out of Range • Move Closer';
+    return 'Weak Signal • Move Closer';
   }
 
   @override
@@ -102,6 +110,7 @@ class _FindDeviceScreenState extends State<FindDeviceScreen> with SingleTickerPr
         actions: [
           IconButton(
             icon: const Icon(Icons.refresh_rounded, color: Colors.white70),
+            tooltip: 'Refresh Proximity',
             onPressed: () => guardian.checkPermissions(),
           ),
         ],
@@ -134,7 +143,7 @@ class _FindDeviceScreenState extends State<FindDeviceScreen> with SingleTickerPr
                   Text(
                     ble.connectedDevice?.platformName.isNotEmpty == true
                         ? ble.connectedDevice!.platformName
-                        : 'SAMADHAN-BAND-ESP32',
+                        : (ble.isConnected ? 'SAMADHAN-BAND-ESP32' : 'NOT CONNECTED'),
                     style: GoogleFonts.inter(
                       fontSize: 12,
                       fontWeight: FontWeight.w600,
@@ -218,28 +227,24 @@ class _FindDeviceScreenState extends State<FindDeviceScreen> with SingleTickerPr
 
                         // Center Pulsing Device Icon
                         Container(
-                          width: 88,
-                          height: 88,
+                          width: 80,
+                          height: 80,
                           decoration: BoxDecoration(
                             shape: BoxShape.circle,
-                            gradient: RadialGradient(
-                              colors: [
-                                color,
-                                color.withOpacity(0.7),
-                              ],
-                            ),
+                            color: color.withOpacity(0.18),
+                            border: Border.all(color: color, width: 2),
                             boxShadow: [
                               BoxShadow(
-                                color: color.withOpacity(0.5),
-                                blurRadius: 24,
+                                color: color.withOpacity(0.35),
+                                blurRadius: 20,
                                 spreadRadius: 4,
                               ),
                             ],
                           ),
                           child: Icon(
-                            _isRinging ? Icons.volume_up_rounded : Icons.watch_rounded,
-                            size: 40,
-                            color: Colors.black,
+                            Icons.watch_rounded,
+                            color: color,
+                            size: 38,
                           ),
                         ),
                       ],
@@ -251,14 +256,14 @@ class _FindDeviceScreenState extends State<FindDeviceScreen> with SingleTickerPr
 
             const Spacer(),
 
-            // Distance Metric Card
+            // Distance & Proximity Readout
             Container(
-              margin: const EdgeInsets.symmetric(horizontal: 24),
-              padding: const EdgeInsets.symmetric(vertical: 20, horizontal: 24),
+              margin: const EdgeInsets.symmetric(horizontal: 24.0),
+              padding: const EdgeInsets.symmetric(horizontal: 20.0, vertical: 16.0),
               decoration: BoxDecoration(
                 color: const Color(0xFF131B2E),
-                borderRadius: BorderRadius.circular(24),
-                border: Border.all(color: Colors.white12),
+                borderRadius: BorderRadius.circular(20),
+                border: Border.all(color: color.withOpacity(0.3)),
               ),
               child: Column(
                 children: [
@@ -268,8 +273,8 @@ class _FindDeviceScreenState extends State<FindDeviceScreen> with SingleTickerPr
                     textBaseline: TextBaseline.alphabetic,
                     children: [
                       Text(
-                        distance.toStringAsFixed(1),
-                        style: GoogleFonts.outfit(
+                        ble.isConnected ? distance.toStringAsFixed(1) : '--',
+                        style: GoogleFonts.jetBrainsMono(
                           fontSize: 44,
                           fontWeight: FontWeight.bold,
                           color: color,
@@ -277,31 +282,32 @@ class _FindDeviceScreenState extends State<FindDeviceScreen> with SingleTickerPr
                       ),
                       const SizedBox(width: 6),
                       Text(
-                        'meters away',
-                        style: GoogleFonts.inter(
+                        'METERS',
+                        style: GoogleFonts.outfit(
                           fontSize: 16,
-                          color: Colors.white60,
+                          fontWeight: FontWeight.bold,
+                          color: Colors.white54,
                         ),
                       ),
                     ],
                   ),
-                  const SizedBox(height: 6),
+                  const SizedBox(height: 4),
                   Text(
-                    _getProximityLabel(distance),
+                    ble.isConnected ? _getProximityLabel(distance) : 'Wearable disconnected',
                     style: GoogleFonts.inter(
                       fontSize: 13,
                       fontWeight: FontWeight.w600,
-                      color: color,
+                      color: Colors.white70,
                     ),
                   ),
-                  const SizedBox(height: 14),
+                  const SizedBox(height: 8),
                   Row(
                     mainAxisAlignment: MainAxisAlignment.center,
                     children: [
-                      const Icon(Icons.signal_cellular_alt_rounded, size: 14, color: Colors.white38),
+                      Icon(Icons.signal_cellular_alt_rounded, size: 14, color: color),
                       const SizedBox(width: 6),
                       Text(
-                        'RSSI: ${guardian.lastRssi} dBm (BLE 5.0 Beacon)',
+                        'BLE RSSI: ${ble.currentRssi} dBm',
                         style: GoogleFonts.jetBrainsMono(
                           fontSize: 11,
                           color: Colors.white38,
@@ -313,69 +319,67 @@ class _FindDeviceScreenState extends State<FindDeviceScreen> with SingleTickerPr
               ),
             ),
 
-            const SizedBox(height: 20),
+            const SizedBox(height: 16),
 
-            // Sound Buzzer Button
-            Padding(
-              padding: const EdgeInsets.symmetric(horizontal: 24.0),
-              child: ElevatedButton.icon(
-                onPressed: _isRinging ? null : _triggerBuzzer,
-                style: ElevatedButton.styleFrom(
-                  backgroundColor: AppTheme.primaryTeal,
-                  foregroundColor: Colors.black,
-                  minimumSize: const Size(double.infinity, 56),
-                  shape: RoundedRectangleBorder(
-                    borderRadius: BorderRadius.circular(16),
+            // Action Button
+            if (ble.isConnected) ...[
+              Padding(
+                padding: const EdgeInsets.symmetric(horizontal: 24.0),
+                child: ElevatedButton.icon(
+                  onPressed: _isRinging ? null : _triggerBuzzer,
+                  style: ElevatedButton.styleFrom(
+                    backgroundColor: AppTheme.primaryTeal,
+                    foregroundColor: Colors.black,
+                    minimumSize: const Size.fromHeight(52),
+                    shape: RoundedRectangleBorder(
+                      borderRadius: BorderRadius.circular(16),
+                    ),
+                    elevation: 4,
                   ),
-                  elevation: 6,
-                ),
-                icon: const Icon(Icons.volume_up_rounded, size: 22),
-                label: Text(
-                  _isRinging ? 'RINGING BAND BUZZER...' : 'RING WEARABLE BUZZER',
-                  style: GoogleFonts.inter(
-                    fontWeight: FontWeight.bold,
-                    letterSpacing: 1.0,
-                    fontSize: 14,
+                  icon: const Icon(Icons.volume_up_rounded, size: 22),
+                  label: Text(
+                    _isRinging ? 'RINGING BAND BUZZER...' : 'RING WEARABLE BUZZER',
+                    style: GoogleFonts.inter(
+                      fontWeight: FontWeight.bold,
+                      letterSpacing: 1.0,
+                      fontSize: 14,
+                    ),
                   ),
                 ),
               ),
-            ),
-
-            const SizedBox(height: 12),
-
-            // Simulation Controls for Testing
-            if (ble.isSimulationActive) ...[
+            ] else ...[
               Padding(
                 padding: const EdgeInsets.symmetric(horizontal: 24.0),
-                child: Row(
-                  children: [
-                    Expanded(
-                      child: OutlinedButton(
-                        onPressed: () => ble.simulateMoveClose(),
-                        style: OutlinedButton.styleFrom(
-                          foregroundColor: Colors.white70,
-                          side: const BorderSide(color: Colors.white24),
-                        ),
-                        child: const Text('Sim: Move Close (<1.5m)'),
-                      ),
+                child: ElevatedButton.icon(
+                  onPressed: () {
+                    Navigator.push(
+                      context,
+                      MaterialPageRoute(builder: (_) => const DevicePairingScreen()),
+                    );
+                  },
+                  style: ElevatedButton.styleFrom(
+                    backgroundColor: const Color(0xFF131B2E),
+                    foregroundColor: AppTheme.primaryTeal,
+                    side: const BorderSide(color: AppTheme.primaryTeal),
+                    minimumSize: const Size.fromHeight(52),
+                    shape: RoundedRectangleBorder(
+                      borderRadius: BorderRadius.circular(16),
                     ),
-                    const SizedBox(width: 10),
-                    Expanded(
-                      child: OutlinedButton(
-                        onPressed: () => ble.simulateMoveAway(),
-                        style: OutlinedButton.styleFrom(
-                          foregroundColor: Colors.white70,
-                          side: const BorderSide(color: Colors.white24),
-                        ),
-                        child: const Text('Sim: Move Away (>8m)'),
-                      ),
+                  ),
+                  icon: const Icon(Icons.bluetooth_searching_rounded, size: 20),
+                  label: Text(
+                    'CONNECT WEARABLE BAND',
+                    style: GoogleFonts.inter(
+                      fontWeight: FontWeight.bold,
+                      letterSpacing: 1.0,
+                      fontSize: 14,
                     ),
-                  ],
+                  ),
                 ),
               ),
             ],
 
-            const SizedBox(height: 16),
+            const SizedBox(height: 24),
           ],
         ),
       ),

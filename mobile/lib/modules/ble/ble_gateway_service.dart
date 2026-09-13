@@ -1,6 +1,5 @@
 import 'dart:async';
 import 'dart:convert';
-import 'dart:math';
 import 'package:flutter/foundation.dart';
 import 'package:flutter_blue_plus/flutter_blue_plus.dart';
 import 'package:shared_preferences/shared_preferences.dart';
@@ -17,9 +16,9 @@ class BleGatewayService extends ChangeNotifier {
 
   ConnectionStatus _status = ConnectionStatus.disconnected;
   bool _isScanning = false;
-  bool _isSimulationActive = false;
   List<ScanResult> _scanResults = [];
   BluetoothDevice? _connectedDevice;
+  BluetoothCharacteristic? _commandCharacteristic;
   String? _lastPairedDeviceId;
 
   TelemetryPacket? _latestPacket;
@@ -27,24 +26,20 @@ class BleGatewayService extends ChangeNotifier {
   final List<TelemetryPacket> _telemetryHistory = [];
 
   StreamSubscription? _scanSubscription;
-  StreamSubscription? _notifySubscription;
+  StreamSubscription? _telemetrySubscription;
+  StreamSubscription? _batterySubscription;
   StreamSubscription? _adapterStateSubscription;
-  Timer? _simulationTimer;
+  Timer? _rssiPollTimer;
   BluetoothAdapterState _adapterState = BluetoothAdapterState.unknown;
 
   String _currentUid = 'usr_default';
-
-  // Simulation test toggles for verification
-  int _simRssi = -65;
-  bool _simOffWrist = false;
-  bool _simCharging = false;
-  int _simBattery = 88;
+  int _currentRssi = -70;
+  int _currentBattery = 85;
 
   // Getters
   ConnectionStatus get status => _status;
   bool get isConnected => _status == ConnectionStatus.live;
   bool get isScanning => _isScanning;
-  bool get isSimulationActive => _isSimulationActive;
   List<ScanResult> get scanResults => _scanResults;
   BluetoothDevice? get connectedDevice => _connectedDevice;
   String? get lastPairedDeviceId => _lastPairedDeviceId;
@@ -53,10 +48,10 @@ class BleGatewayService extends ChangeNotifier {
   List<TelemetryPacket> get telemetryHistory => List.unmodifiable(_telemetryHistory);
   BluetoothAdapterState get adapterState => _adapterState;
   bool get isBluetoothOn => _adapterState == BluetoothAdapterState.on;
+  int get currentRssi => _currentRssi;
 
   BleGatewayService(this._syncService) {
     _initBluetoothLifecycle();
-    startSimulation();
   }
 
   void setGuardianService(WearableGuardianService guardian) {
@@ -78,7 +73,7 @@ class BleGatewayService extends ChangeNotifier {
           notifyListeners();
 
           if (state == BluetoothAdapterState.on) {
-            debugPrint('[BLE Gateway] Adapter is ON - Auto-checking paired wearable...');
+            debugPrint('[BLE Gateway] Adapter is ON. Auto-connecting to real peripheral...');
             autoReconnectIfConfigured();
           } else if (state == BluetoothAdapterState.off) {
             debugPrint('[BLE Gateway] Adapter is OFF');
@@ -89,11 +84,11 @@ class BleGatewayService extends ChangeNotifier {
         });
       }
     } catch (e) {
-      debugPrint('[BLE Gateway] Bluetooth initialization error: $e');
+      debugPrint('[BLE Gateway] Bluetooth lifecycle init exception: $e');
     }
   }
 
-  /// Automatically reconnect to the last known band if Bluetooth is enabled
+  /// Auto-reconnect to real physical wearable if paired previously
   Future<void> autoReconnectIfConfigured() async {
     if (_connectedDevice != null || _isScanning) return;
 
@@ -101,22 +96,21 @@ class BleGatewayService extends ChangeNotifier {
     _lastPairedDeviceId = prefs.getString('last_paired_device_id');
 
     if (_lastPairedDeviceId != null && _lastPairedDeviceId!.isNotEmpty) {
-      debugPrint('[BLE Gateway] Found saved paired device ID: $_lastPairedDeviceId. Attempting auto-reconnect...');
-      
+      debugPrint('[BLE Gateway] Reconnecting to saved hardware ID: $_lastPairedDeviceId');
       try {
         final device = BluetoothDevice.fromId(_lastPairedDeviceId!);
         final success = await connectToDevice(device);
         if (!success) {
-          debugPrint('[BLE Gateway] Direct auto-reconnect failed. Launching discovery scan...');
           startScan();
         }
       } catch (e) {
-        debugPrint('[BLE Gateway] Auto-reconnect exception: $e');
+        debugPrint('[BLE Gateway] Direct hardware reconnect failed: $e');
+        startScan();
       }
     }
   }
 
-  /// Start BLE Scan for Samadhan Wearables (Contract Section 3)
+  /// Start BLE scan for real Bluetooth health peripherals and ESP32 bands
   Future<void> startScan() async {
     if (_isScanning) return;
     _scanResults.clear();
@@ -125,25 +119,24 @@ class BleGatewayService extends ChangeNotifier {
 
     try {
       if (await FlutterBluePlus.isSupported == false) {
-        debugPrint('BLE is not supported on this platform');
+        debugPrint('[BLE Gateway] BLE hardware unsupported on this host');
         _isScanning = false;
         notifyListeners();
         return;
       }
 
       await FlutterBluePlus.startScan(
-        timeout: const Duration(seconds: 8),
+        timeout: const Duration(seconds: 10),
       );
 
       _scanSubscription = FlutterBluePlus.scanResults.listen((results) {
         _scanResults = results;
         notifyListeners();
 
-        // Check if last paired device is found in scan results
+        // Check if saved hardware device appeared in scan results
         if (_lastPairedDeviceId != null && _connectedDevice == null) {
           for (final res in results) {
             if (res.device.remoteId.str == _lastPairedDeviceId) {
-              debugPrint('[BLE Gateway] Target paired device discovered: ${res.device.remoteId.str}');
               connectToDevice(res.device);
               break;
             }
@@ -151,10 +144,10 @@ class BleGatewayService extends ChangeNotifier {
         }
       });
 
-      await Future.delayed(const Duration(seconds: 8));
+      await Future.delayed(const Duration(seconds: 10));
       await stopScan();
     } catch (e) {
-      debugPrint('Error starting BLE scan: $e');
+      debugPrint('[BLE Gateway] BLE scan error: $e');
       _isScanning = false;
       notifyListeners();
     }
@@ -167,43 +160,82 @@ class BleGatewayService extends ChangeNotifier {
     notifyListeners();
   }
 
-  /// Connect to physical BLE device
+  /// Connect to real physical Bluetooth hardware peripheral
   Future<bool> connectToDevice(BluetoothDevice device) async {
-    stopSimulation();
     await stopScan();
 
     try {
       _status = ConnectionStatus.cached;
       notifyListeners();
 
+      debugPrint('[BLE Gateway] Connecting to physical device: ${device.platformName} (${device.remoteId.str})');
       await device.connect(
         license: License.nonprofit,
-        timeout: const Duration(seconds: 10),
+        timeout: const Duration(seconds: 12),
       );
       _connectedDevice = device;
       _lastPairedDeviceId = device.remoteId.str;
 
-      // Persist last paired device
+      // Save paired hardware ID
       final prefs = await SharedPreferences.getInstance();
       await prefs.setString('last_paired_device_id', device.remoteId.str);
 
-      // Discover services
+      // Discover real GATT Services & Characteristics
       final services = await device.discoverServices();
       for (final service in services) {
-        for (final c in service.characteristics) {
-          if (c.properties.notify || c.properties.read) {
-            await c.setNotifyValue(true);
-            _notifySubscription = c.onValueReceived.listen(_onCharacteristicPacketReceived);
-            break;
+        final sUuid = service.uuid.toString().toUpperCase();
+
+        // 1. Samadhan ESP32 Custom UART Service
+        if (sUuid.contains("6E400001") || sUuid == BleConstants.serviceUuid) {
+          for (final c in service.characteristics) {
+            final cUuid = c.uuid.toString().toUpperCase();
+            if (cUuid.contains("6E400002") || c.properties.notify) {
+              await c.setNotifyValue(true);
+              _telemetrySubscription = c.onValueReceived.listen(_onCustomPacketReceived);
+            } else if (cUuid.contains("6E400003") || c.properties.write) {
+              _commandCharacteristic = c;
+            }
+          }
+        }
+
+        // 2. Standard Bluetooth SIG Heart Rate Service (0x180D)
+        if (sUuid.contains("180D")) {
+          for (final c in service.characteristics) {
+            if (c.uuid.toString().toUpperCase().contains("2A37") || c.properties.notify) {
+              await c.setNotifyValue(true);
+              _telemetrySubscription = c.onValueReceived.listen(_onStandardHeartRateReceived);
+            }
+          }
+        }
+
+        // 3. Standard Bluetooth SIG Battery Service (0x180F)
+        if (sUuid.contains("180F")) {
+          for (final c in service.characteristics) {
+            if (c.uuid.toString().toUpperCase().contains("2A19")) {
+              if (c.properties.read) {
+                final val = await c.read();
+                if (val.isNotEmpty) _currentBattery = val[0];
+              }
+              if (c.properties.notify) {
+                await c.setNotifyValue(true);
+                _batterySubscription = c.onValueReceived.listen((bytes) {
+                  if (bytes.isNotEmpty) {
+                    _currentBattery = bytes[0];
+                    notifyListeners();
+                  }
+                });
+              }
+            }
           }
         }
       }
 
       _status = ConnectionStatus.live;
+      _startRssiPolling();
       notifyListeners();
       return true;
     } catch (e) {
-      debugPrint('Failed to connect to device: $e');
+      debugPrint('[BLE Gateway] Physical hardware connection failed: $e');
       _status = ConnectionStatus.disconnected;
       _connectedDevice = null;
       notifyListeners();
@@ -212,51 +244,115 @@ class BleGatewayService extends ChangeNotifier {
   }
 
   void disconnectDevice() {
-    _notifySubscription?.cancel();
+    _rssiPollTimer?.cancel();
+    _telemetrySubscription?.cancel();
+    _batterySubscription?.cancel();
     _connectedDevice?.disconnect();
     _connectedDevice = null;
     _status = ConnectionStatus.disconnected;
     notifyListeners();
   }
 
-  /// Send Command to Band to Vibrate / Ring Buzzer ("Find My Device")
-  Future<bool> triggerFindDeviceBuzzer() async {
-    if (_connectedDevice != null) {
-      try {
-        final services = await _connectedDevice!.discoverServices();
-        for (final s in services) {
-          for (final c in s.characteristics) {
-            if (c.properties.write) {
-              // Standard buzzer/alert command payload: [0xAA, 0x01, 0x55]
-              await c.write([0xAA, 0x01, 0x55]);
-              return true;
-            }
+  /// Periodically read real RSSI from the connected hardware device
+  void _startRssiPolling() {
+    _rssiPollTimer?.cancel();
+    _rssiPollTimer = Timer.periodic(const Duration(seconds: 2), (timer) async {
+      if (_connectedDevice != null && _status == ConnectionStatus.live) {
+        try {
+          final rssi = await _connectedDevice!.readRssi();
+          _currentRssi = rssi;
+          if (_latestPacket != null) {
+            _latestPacket = _latestPacket!.copyWith(rssi: rssi);
+            _guardianService?.processTelemetry(_latestPacket!);
           }
-        }
-      } catch (e) {
-        debugPrint('Find device write failed: $e');
+          notifyListeners();
+        } catch (_) {}
       }
-    }
-    // In simulation mode, succeed with feedback
-    return true;
+    });
   }
 
-  void _onCharacteristicPacketReceived(List<int> rawBytes) {
+  /// Send real command packet to physical band buzzer
+  Future<bool> triggerFindDeviceBuzzer() async {
+    if (_commandCharacteristic != null) {
+      try {
+        // Production command: 0xAA (Header), 0x01 (Buzzer Command), 0x55 (Checksum)
+        await _commandCharacteristic!.write([0xAA, 0x01, 0x55]);
+        return true;
+      } catch (e) {
+        debugPrint('[BLE Gateway] Command write to hardware characteristic failed: $e');
+      }
+    }
+    return false;
+  }
+
+  /// Parse real incoming Samadhan Custom ESP32 JSON / binary telemetry
+  void _onCustomPacketReceived(List<int> rawBytes) {
     try {
       final jsonStr = utf8.decode(rawBytes);
       final data = jsonDecode(jsonStr) as Map<String, dynamic>;
       final packet = TelemetryPacket.fromJson(data);
       _handleIncomingPacket(packet);
     } catch (_) {
-      // Binary packet decoding fallback if needed
+      // Fallback: binary parsing
+      if (rawBytes.length >= 4) {
+        final hr = rawBytes[0];
+        final spo2 = rawBytes[1].toDouble();
+        final temp = rawBytes[2].toDouble();
+        final packet = TelemetryPacket(
+          deviceId: _connectedDevice?.platformName ?? 'SAMADHAN-BAND',
+          timestamp: DateTime.now(),
+          heartRate: hr > 30 ? hr : null,
+          spo2: spo2 > 70 ? spo2 : null,
+          temperature: temp > 0 ? temp : 26.5,
+          battery: _currentBattery,
+          rssi: _currentRssi,
+        );
+        _handleIncomingPacket(packet);
+      }
     }
   }
 
+  /// Parse standard Bluetooth SIG Heart Rate Measurement (0x2A37)
+  void _onStandardHeartRateReceived(List<int> bytes) {
+    if (bytes.isEmpty) return;
+
+    final flags = bytes[0];
+    final is16Bit = (flags & 0x01) != 0;
+    final sensorContactSupported = (flags & 0x04) != 0;
+    final sensorContactDetected = (flags & 0x02) != 0;
+
+    int hr = 0;
+    if (is16Bit && bytes.length >= 3) {
+      hr = bytes[1] | (bytes[2] << 8);
+    } else if (!is16Bit && bytes.length >= 2) {
+      hr = bytes[1];
+    }
+
+    // Real off-wrist detection using Bluetooth SIG sensor contact flag
+    final hrStatus = (sensorContactSupported && !sensorContactDetected)
+        ? 'INVALID'
+        : (hr > 30 && hr < 220 ? 'VALID' : 'LOW_QUALITY');
+
+    final packet = TelemetryPacket(
+      deviceId: _connectedDevice?.platformName.isNotEmpty == true
+          ? _connectedDevice!.platformName
+          : 'SAMADHAN-BAND',
+      timestamp: DateTime.now(),
+      heartRate: hrStatus == 'VALID' ? hr : null,
+      hrStatus: hrStatus,
+      ppgQuality: hrStatus == 'VALID' ? 'GOOD' : 'POOR',
+      battery: _currentBattery,
+      rssi: _currentRssi,
+    );
+
+    _handleIncomingPacket(packet);
+  }
+
   void _handleIncomingPacket(TelemetryPacket packet) {
-    // 1. Run TinyML Risk Engine
+    // 1. Run local on-device TinyML Risk Engine
     _latestRiskAssessment = _riskEngine.evaluateTelemetry(packet);
 
-    // 2. Attach updated risk score
+    // 2. Attach updated risk score, real RSSI, and real battery
     final evaluatedPacket = TelemetryPacket(
       deviceId: packet.deviceId,
       timestamp: packet.timestamp,
@@ -281,9 +377,9 @@ class BleGatewayService extends ChangeNotifier {
       overallDataQuality: packet.overallDataQuality,
       riskScore: _latestRiskAssessment!.compositeRiskScore,
       fallState: packet.fallState,
-      battery: packet.battery,
+      battery: packet.battery != 85 ? packet.battery : _currentBattery,
       isCharging: packet.isCharging,
-      rssi: packet.rssi,
+      rssi: _currentRssi,
       isSynced: packet.isSynced,
     );
 
@@ -296,154 +392,24 @@ class BleGatewayService extends ChangeNotifier {
     _status = ConnectionStatus.live;
     notifyListeners();
 
-    // 3. Process guardian heuristics (Proximity, Off-Wrist, Charging)
+    // 3. Process Guardian state
     _guardianService?.processTelemetry(evaluatedPacket);
 
-    // 4. Relay to Cloud Sync Gateway
+    // 4. Relay to Firebase RTDB Cloud Sync Gateway
     _syncService.syncPacket(
       uid: _currentUid,
       packet: evaluatedPacket,
+      latitude: _guardianService?.currentLatitude,
+      longitude: _guardianService?.currentLongitude,
     );
-  }
-
-  /// -------------------------------------------------------------
-  /// Simulation Mode: Generates physiological sensor data
-  /// -------------------------------------------------------------
-  void startSimulation() {
-    if (_isSimulationActive) return;
-    _isSimulationActive = true;
-    _status = ConnectionStatus.live;
-
-    final random = Random();
-    int baseHr = 72;
-    double baseSpo2 = 98.2;
-
-    _simulationTimer?.cancel();
-    _simulationTimer = Timer.periodic(const Duration(seconds: 2), (timer) {
-      final hrJitter = (sin(timer.tick * 0.15) * 4 + random.nextInt(3)).round();
-      final currentHr = (baseHr + hrJitter).clamp(55, 150);
-
-      final spo2Jitter = (random.nextDouble() * 0.6 - 0.3);
-      final currentSpo2 = ((baseSpo2 + spo2Jitter) * 10).round() / 10.0;
-
-      final ax = (random.nextDouble() * 0.08 - 0.04);
-      final ay = (random.nextDouble() * 0.08 - 0.04);
-      final az = 0.98 + (random.nextDouble() * 0.04 - 0.02);
-      final mag = sqrt(ax * ax + ay * ay + az * az);
-
-      // Normal RSSI slight jitter around base
-      final currentRssi = _simRssi + random.nextInt(3) - 1;
-
-      final packet = TelemetryPacket(
-        deviceId: 'SAMADHAN-BAND-A7F39C',
-        timestamp: DateTime.now(),
-        heartRate: _simOffWrist ? null : currentHr,
-        spo2: _simOffWrist ? null : currentSpo2.clamp(90.0, 100.0),
-        hrStatus: _simOffWrist ? 'INVALID' : 'VALID',
-        spo2Status: _simOffWrist ? 'INVALID' : 'VALID',
-        ppgQuality: _simOffWrist ? 'POOR' : 'GOOD',
-        temperature: 26.4,
-        humidity: 54.0,
-        dhtStatus: 'VALID',
-        accelX: double.parse(ax.toStringAsFixed(3)),
-        accelY: double.parse(ay.toStringAsFixed(3)),
-        accelZ: double.parse(az.toStringAsFixed(3)),
-        accelMagnitude: double.parse(mag.toStringAsFixed(3)),
-        gyroX: 0.2,
-        gyroY: 0.1,
-        gyroZ: -0.1,
-        gyroActivity: 0.05,
-        movementState: mag > 1.2 ? 'ACTIVE' : 'RESTING',
-        imuStatus: 'VALID',
-        overallDataQuality: _simOffWrist ? 'POOR' : 'GOOD',
-        fallState: 'IDLE',
-        battery: _simBattery,
-        isCharging: _simCharging,
-        rssi: currentRssi,
-      );
-
-      _handleIncomingPacket(packet);
-    });
-
-    notifyListeners();
-  }
-
-  void stopSimulation() {
-    _simulationTimer?.cancel();
-    _simulationTimer = null;
-    _isSimulationActive = false;
-    notifyListeners();
-  }
-
-  /// Simulation control helpers for testing all guardian conditions
-  void simulateMoveAway() {
-    _simRssi = -92; // Causes distance to jump to >10 meters
-    notifyListeners();
-  }
-
-  void simulateMoveClose() {
-    _simRssi = -60; // Normal close distance (~1.1 meters)
-    notifyListeners();
-  }
-
-  void simulateTakeOffWrist() {
-    _simOffWrist = true;
-    notifyListeners();
-  }
-
-  void simulatePutOnWrist() {
-    _simOffWrist = false;
-    notifyListeners();
-  }
-
-  void simulateToggleCharging() {
-    _simCharging = !_simCharging;
-    notifyListeners();
-  }
-
-  void simulateLowBattery() {
-    _simBattery = 14;
-    _simCharging = false;
-    notifyListeners();
-  }
-
-  void simulateEmergencyFall() {
-    final fallPacket = TelemetryPacket(
-      deviceId: 'SAMADHAN-BAND-A7F39C',
-      timestamp: DateTime.now(),
-      heartRate: 128,
-      spo2: 92.0,
-      hrStatus: 'VALID',
-      spo2Status: 'VALID',
-      ppgQuality: 'FAIR',
-      temperature: 26.8,
-      humidity: 56.0,
-      dhtStatus: 'VALID',
-      accelX: 2.45,
-      accelY: -1.82,
-      accelZ: 3.91,
-      accelMagnitude: 4.95,
-      gyroX: 180.5,
-      gyroY: 220.0,
-      gyroZ: 95.2,
-      gyroActivity: 1.85,
-      movementState: 'ACTIVE',
-      imuStatus: 'VALID',
-      overallDataQuality: 'GOOD',
-      fallState: 'FALL_CONFIRMED',
-      battery: _simBattery,
-      isCharging: _simCharging,
-      rssi: _simRssi,
-    );
-
-    _handleIncomingPacket(fallPacket);
   }
 
   @override
   void dispose() {
-    _simulationTimer?.cancel();
+    _rssiPollTimer?.cancel();
     _scanSubscription?.cancel();
-    _notifySubscription?.cancel();
+    _telemetrySubscription?.cancel();
+    _batterySubscription?.cancel();
     _adapterStateSubscription?.cancel();
     super.dispose();
   }

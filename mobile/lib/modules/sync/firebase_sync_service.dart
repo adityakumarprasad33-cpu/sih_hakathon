@@ -15,13 +15,14 @@ enum CloudSyncStatus {
 class FirebaseSyncService extends ChangeNotifier {
   final OfflineBufferService _bufferService = OfflineBufferService();
   String _rtdbUrl = FirebaseConstants.defaultRtdbUrl;
+  String? _idToken;
 
   bool _isSyncing = false;
   DateTime? _lastSyncedAt;
   int _unsyncedCount = 0;
   String? _lastError;
   int _historySampleCounter = 0;
-  CloudSyncStatus _cloudStatus = CloudSyncStatus.online;
+  CloudSyncStatus _cloudStatus = CloudSyncStatus.offlineBuffer;
 
   bool get isSyncing => _isSyncing;
   DateTime? get lastSyncedAt => _lastSyncedAt;
@@ -34,6 +35,10 @@ class FirebaseSyncService extends ChangeNotifier {
     _refreshUnsyncedCount();
   }
 
+  void setIdToken(String? token) {
+    _idToken = token;
+  }
+
   void setCustomRtdbUrl(String url) {
     if (url.isNotEmpty) {
       _rtdbUrl = url;
@@ -41,16 +46,23 @@ class FirebaseSyncService extends ChangeNotifier {
     }
   }
 
+  String _buildUrl(String path) {
+    if (_idToken != null && _idToken!.isNotEmpty) {
+      return '$_rtdbUrl$path?auth=$_idToken';
+    }
+    return '$_rtdbUrl$path';
+  }
+
   Future<void> _refreshUnsyncedCount() async {
     _unsyncedCount = await _bufferService.getUnsyncedCount();
     notifyListeners();
   }
 
-  /// Quick health ping to test cloud database reachability
+  /// Real connectivity check to production Firebase RTDB
   Future<bool> testDatabaseConnection() async {
     try {
-      final pingUrl = Uri.parse('$_rtdbUrl/.json?shallow=true');
-      final res = await http.get(pingUrl).timeout(const Duration(seconds: 3));
+      final pingUrl = Uri.parse(_buildUrl('/.json?shallow=true'));
+      final res = await http.get(pingUrl).timeout(const Duration(seconds: 4));
       final reachable = res.statusCode >= 200 && res.statusCode < 400;
       _cloudStatus = reachable ? CloudSyncStatus.online : CloudSyncStatus.offlineBuffer;
       notifyListeners();
@@ -62,30 +74,38 @@ class FirebaseSyncService extends ChangeNotifier {
     }
   }
 
-  /// Synchronize according to MOBILE_GATEWAY_CONTRACT Section 4 & 5
+  /// Synchronize real telemetry packet according to MOBILE_GATEWAY_CONTRACT Section 4 & 5
   Future<bool> syncPacket({
     required String uid,
     required TelemetryPacket packet,
+    double? latitude,
+    double? longitude,
   }) async {
     try {
       final timestampMs = packet.timestamp.millisecondsSinceEpoch;
       final payload = packet.toJson();
 
+      if (latitude != null && longitude != null) {
+        payload['latitude'] = latitude;
+        payload['longitude'] = longitude;
+      }
+
       // 1. Live stream update to /telemetry/{uid}/live.json
-      final liveUrl = Uri.parse('$_rtdbUrl/telemetry/$uid/live.json');
+      final liveUrl = Uri.parse(_buildUrl('/telemetry/$uid/live.json'));
       final res = await http.put(
         liveUrl,
         headers: {'Content-Type': 'application/json'},
         body: jsonEncode(payload),
-      ).timeout(const Duration(seconds: 4));
+      ).timeout(const Duration(seconds: 5));
 
       if (res.statusCode >= 200 && res.statusCode < 300) {
         _cloudStatus = CloudSyncStatus.online;
-        // 2. Periodic history downsample to /telemetry/{uid}/history/{timestampMs}.json (every 5 packets)
+
+        // 2. Periodic history downsample to /telemetry/{uid}/history/{timestampMs}.json
         _historySampleCounter++;
         if (_historySampleCounter >= 5) {
           _historySampleCounter = 0;
-          final historyUrl = Uri.parse('$_rtdbUrl/telemetry/$uid/history/$timestampMs.json');
+          final historyUrl = Uri.parse(_buildUrl('/telemetry/$uid/history/$timestampMs.json'));
           await http.put(
             historyUrl,
             headers: {'Content-Type': 'application/json'},
@@ -94,7 +114,7 @@ class FirebaseSyncService extends ChangeNotifier {
         }
 
         // 3. Update /devices/{deviceId}.json (Contract Section 3)
-        final deviceUrl = Uri.parse('$_rtdbUrl/devices/${packet.deviceId}.json');
+        final deviceUrl = Uri.parse(_buildUrl('/devices/${packet.deviceId}.json'));
         await http.patch(
           deviceUrl,
           headers: {'Content-Type': 'application/json'},
@@ -121,8 +141,10 @@ class FirebaseSyncService extends ChangeNotifier {
             deviceId: packet.deviceId,
             type: packet.fallDetected ? 'FALL_CONFIRMED' : 'CRITICAL_VITALS',
             message: packet.fallDetected
-                ? 'High-impact fall detected by wearable MPU6050 IMU accelerometer (Acc: ${packet.accelMagnitude?.toStringAsFixed(2)}g)'
-                : 'Abnormal vitals: HR ${packet.heartRate ?? "--"} BPM, SpO2 ${packet.spo2 ?? "--"}%',
+                ? 'High-impact fall detected by wearable MPU6050 accelerometer (Acc: ${packet.accelMagnitude?.toStringAsFixed(2)}g)'
+                : 'Critical vitals detected: HR ${packet.heartRate ?? "--"} BPM, SpO2 ${packet.spo2 ?? "--"}%',
+            latitude: latitude,
+            longitude: longitude,
           );
         }
 
@@ -132,12 +154,12 @@ class FirebaseSyncService extends ChangeNotifier {
         notifyListeners();
         return true;
       } else {
-        throw Exception('Server returned ${res.statusCode}');
+        throw Exception('Firebase RTDB returned status ${res.statusCode}: ${res.body}');
       }
     } catch (e) {
       _lastError = e.toString();
       _cloudStatus = CloudSyncStatus.offlineBuffer;
-      // Store in offline buffer on failure
+      // Store in offline buffer on network drop or failure
       await _bufferService.bufferPacket(packet.copyWith(isSynced: false));
       await _refreshUnsyncedCount();
       notifyListeners();
@@ -165,7 +187,7 @@ class FirebaseSyncService extends ChangeNotifier {
 
       for (final packet in unsynced) {
         final timestampMs = packet.timestamp.millisecondsSinceEpoch;
-        final historyUrl = Uri.parse('$_rtdbUrl/telemetry/$uid/history/$timestampMs.json');
+        final historyUrl = Uri.parse(_buildUrl('/telemetry/$uid/history/$timestampMs.json'));
 
         final res = await http.put(
           historyUrl,
@@ -200,19 +222,29 @@ class FirebaseSyncService extends ChangeNotifier {
     required String deviceId,
     required String type,
     required String message,
+    double? latitude,
+    double? longitude,
   }) async {
     try {
-      final alertUrl = Uri.parse('$_rtdbUrl/alerts/$uid.json');
+      final alertUrl = Uri.parse(_buildUrl('/alerts/$uid.json'));
+      final payload = {
+        'patientUid': uid,
+        'deviceId': deviceId,
+        'type': type,
+        'message': message,
+        'createdAt': DateTime.now().millisecondsSinceEpoch,
+        'acknowledged': false,
+      };
+
+      if (latitude != null && longitude != null) {
+        payload['latitude'] = latitude;
+        payload['longitude'] = longitude;
+      }
+
       final res = await http.post(
         alertUrl,
         headers: {'Content-Type': 'application/json'},
-        body: jsonEncode({
-          'type': type,
-          'message': message,
-          'deviceId': deviceId,
-          'timestamp': DateTime.now().millisecondsSinceEpoch,
-          'acknowledged': false,
-        }),
+        body: jsonEncode(payload),
       );
       return res.statusCode >= 200 && res.statusCode < 300;
     } catch (_) {
