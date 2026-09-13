@@ -6,28 +6,60 @@ import 'package:samadhan_health/core/constants/app_constants.dart';
 import 'package:samadhan_health/core/models/telemetry_packet.dart';
 import 'package:samadhan_health/modules/storage/offline_buffer_service.dart';
 
+enum CloudSyncStatus {
+  online,
+  offlineBuffer,
+  syncing,
+}
+
 class FirebaseSyncService extends ChangeNotifier {
   final OfflineBufferService _bufferService = OfflineBufferService();
-  final String _rtdbUrl = FirebaseConstants.defaultRtdbUrl;
+  String _rtdbUrl = FirebaseConstants.defaultRtdbUrl;
 
   bool _isSyncing = false;
   DateTime? _lastSyncedAt;
   int _unsyncedCount = 0;
   String? _lastError;
   int _historySampleCounter = 0;
+  CloudSyncStatus _cloudStatus = CloudSyncStatus.online;
 
   bool get isSyncing => _isSyncing;
   DateTime? get lastSyncedAt => _lastSyncedAt;
   int get unsyncedCount => _unsyncedCount;
   String? get lastError => _lastError;
+  CloudSyncStatus get cloudStatus => _cloudStatus;
+  String get rtdbUrl => _rtdbUrl;
 
   FirebaseSyncService() {
     _refreshUnsyncedCount();
   }
 
+  void setCustomRtdbUrl(String url) {
+    if (url.isNotEmpty) {
+      _rtdbUrl = url;
+      notifyListeners();
+    }
+  }
+
   Future<void> _refreshUnsyncedCount() async {
     _unsyncedCount = await _bufferService.getUnsyncedCount();
     notifyListeners();
+  }
+
+  /// Quick health ping to test cloud database reachability
+  Future<bool> testDatabaseConnection() async {
+    try {
+      final pingUrl = Uri.parse('$_rtdbUrl/.json?shallow=true');
+      final res = await http.get(pingUrl).timeout(const Duration(seconds: 3));
+      final reachable = res.statusCode >= 200 && res.statusCode < 400;
+      _cloudStatus = reachable ? CloudSyncStatus.online : CloudSyncStatus.offlineBuffer;
+      notifyListeners();
+      return reachable;
+    } catch (_) {
+      _cloudStatus = CloudSyncStatus.offlineBuffer;
+      notifyListeners();
+      return false;
+    }
   }
 
   /// Synchronize according to MOBILE_GATEWAY_CONTRACT Section 4 & 5
@@ -48,6 +80,7 @@ class FirebaseSyncService extends ChangeNotifier {
       ).timeout(const Duration(seconds: 4));
 
       if (res.statusCode >= 200 && res.statusCode < 300) {
+        _cloudStatus = CloudSyncStatus.online;
         // 2. Periodic history downsample to /telemetry/{uid}/history/{timestampMs}.json (every 5 packets)
         _historySampleCounter++;
         if (_historySampleCounter >= 5) {
@@ -72,6 +105,7 @@ class FirebaseSyncService extends ChangeNotifier {
             'status': 'PAIRED',
             'lastSeen': timestampMs,
             'battery': packet.battery,
+            'isCharging': packet.isCharging,
             'sensors': {
               'max30102': packet.hrStatus == 'VALID' ? 'ACTIVE' : 'DEGRADED',
               'mpu6050': packet.imuStatus == 'VALID' ? 'ACTIVE' : 'ERROR',
@@ -102,6 +136,7 @@ class FirebaseSyncService extends ChangeNotifier {
       }
     } catch (e) {
       _lastError = e.toString();
+      _cloudStatus = CloudSyncStatus.offlineBuffer;
       // Store in offline buffer on failure
       await _bufferService.bufferPacket(packet.copyWith(isSynced: false));
       await _refreshUnsyncedCount();
@@ -114,12 +149,14 @@ class FirebaseSyncService extends ChangeNotifier {
   Future<void> flushOfflineBuffer(String uid) async {
     if (_isSyncing) return;
     _isSyncing = true;
+    _cloudStatus = CloudSyncStatus.syncing;
     notifyListeners();
 
     try {
       final unsynced = await _bufferService.getUnsyncedPackets();
       if (unsynced.isEmpty) {
         _isSyncing = false;
+        _cloudStatus = CloudSyncStatus.online;
         notifyListeners();
         return;
       }
@@ -147,8 +184,10 @@ class FirebaseSyncService extends ChangeNotifier {
         await _bufferService.markPacketsSynced(successfullySynced);
         _lastSyncedAt = DateTime.now();
       }
+      _cloudStatus = CloudSyncStatus.online;
     } catch (e) {
       _lastError = e.toString();
+      _cloudStatus = CloudSyncStatus.offlineBuffer;
     } finally {
       _isSyncing = false;
       await _refreshUnsyncedCount();

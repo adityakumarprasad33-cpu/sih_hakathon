@@ -79,6 +79,7 @@ class VitalCard extends StatelessWidget {
   final IconData icon;
   final Color accentColor;
   final String? subtitle;
+  final bool isWarning;
 
   const VitalCard({
     Key? key,
@@ -88,16 +89,45 @@ class VitalCard extends StatelessWidget {
     required this.icon,
     required this.accentColor,
     this.subtitle,
+    this.isWarning = false,
   }) : super(key: key);
+
+  // Convenient secondary constructor allowing (title: ..., color: ...)
+  factory VitalCard.styled({
+    Key? key,
+    required String title,
+    required String value,
+    required String unit,
+    required IconData icon,
+    required Color color,
+    String? subtitle,
+    bool isWarning = false,
+  }) {
+    return VitalCard(
+      key: key,
+      label: title,
+      value: value,
+      unit: unit,
+      icon: icon,
+      accentColor: color,
+      subtitle: subtitle,
+      isWarning: isWarning,
+    );
+  }
 
   @override
   Widget build(BuildContext context) {
+    final effectiveColor = isWarning ? AppTheme.danger : accentColor;
+
     return Container(
       padding: const EdgeInsets.all(16),
       decoration: BoxDecoration(
         color: AppTheme.surface,
         borderRadius: BorderRadius.circular(16),
-        border: Border.all(color: AppTheme.border),
+        border: Border.all(
+          color: isWarning ? AppTheme.danger.withOpacity(0.6) : AppTheme.border,
+          width: isWarning ? 1.5 : 1.0,
+        ),
       ),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
@@ -107,8 +137,8 @@ class VitalCard extends StatelessWidget {
             children: [
               Text(
                 label.toUpperCase(),
-                style: const TextStyle(
-                  color: AppTheme.textSecondary,
+                style: TextStyle(
+                  color: isWarning ? AppTheme.danger : AppTheme.textSecondary,
                   fontSize: 11,
                   fontWeight: FontWeight.w700,
                   letterSpacing: 0.8,
@@ -117,10 +147,10 @@ class VitalCard extends StatelessWidget {
               Container(
                 padding: const EdgeInsets.all(6),
                 decoration: BoxDecoration(
-                  color: accentColor.withOpacity(0.12),
+                  color: effectiveColor.withOpacity(0.12),
                   borderRadius: BorderRadius.circular(8),
                 ),
-                child: Icon(icon, color: accentColor, size: 16),
+                child: Icon(icon, color: effectiveColor, size: 16),
               ),
             ],
           ),
@@ -131,8 +161,8 @@ class VitalCard extends StatelessWidget {
             children: [
               Text(
                 value,
-                style: const TextStyle(
-                  color: AppTheme.textPrimary,
+                style: TextStyle(
+                  color: isWarning ? AppTheme.danger : AppTheme.textPrimary,
                   fontSize: 26,
                   fontWeight: FontWeight.w800,
                   letterSpacing: -0.5,
@@ -142,7 +172,7 @@ class VitalCard extends StatelessWidget {
               Text(
                 unit,
                 style: TextStyle(
-                  color: accentColor,
+                  color: effectiveColor,
                   fontSize: 13,
                   fontWeight: FontWeight.w600,
                 ),

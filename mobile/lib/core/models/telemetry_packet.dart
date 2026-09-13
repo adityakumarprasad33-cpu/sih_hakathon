@@ -29,11 +29,13 @@ class TelemetryPacket {
   final String movementState; // 'RESTING', 'LOW_ACTIVITY', 'ACTIVE', 'UNKNOWN'
   final String imuStatus; // 'VALID', 'ERROR'
 
-  // Quality & Risk
+  // Quality, Risk & Device State
   final String overallDataQuality; // 'GOOD', 'FAIR', 'POOR', 'ERROR'
   final double riskScore; // 0 - 100
   final String fallState; // 'IDLE', 'IMPACT_CANDIDATE', 'POST_IMPACT_MONITORING', 'FALL_SUSPECTED', 'FALL_CONFIRMED', 'CANCELLED', 'COOLDOWN'
   final int battery;
+  final bool isCharging;
+  final int rssi; // Received Signal Strength in dBm
   final bool isSynced;
 
   TelemetryPacket({
@@ -61,10 +63,15 @@ class TelemetryPacket {
     this.riskScore = 12.0,
     this.fallState = 'IDLE',
     this.battery = 85,
+    this.isCharging = false,
+    this.rssi = -65,
     this.isSynced = false,
   });
 
   bool get fallDetected => fallState == 'FALL_CONFIRMED' || fallState == 'FALL_SUSPECTED';
+
+  /// Off-wrist heuristic: if PPG sensor reports INVALID or POOR while resting
+  bool get isWristWorn => hrStatus != 'INVALID' && ppgQuality != 'POOR' && heartRate != null;
 
   RiskLevel get riskLevel {
     if (fallDetected || riskScore >= 75 || (heartRate != null && heartRate! > 130) || (spo2 != null && spo2! < 90)) {
@@ -101,6 +108,8 @@ class TelemetryPacket {
       'riskScore': riskScore,
       'fallState': fallState,
       'battery': battery,
+      'isCharging': isCharging,
+      'rssi': rssi,
       'isSynced': isSynced,
     };
   }
@@ -146,11 +155,20 @@ class TelemetryPacket {
       riskScore: (json['riskScore'] as num?)?.toDouble() ?? 12.0,
       fallState: json['fallState'] as String? ?? 'IDLE',
       battery: (json['battery'] as num?)?.toInt() ?? 85,
+      isCharging: json['isCharging'] as bool? ?? false,
+      rssi: (json['rssi'] as num?)?.toInt() ?? -65,
       isSynced: json['isSynced'] as bool? ?? false,
     );
   }
 
-  TelemetryPacket copyWith({bool? isSynced, String? fallState}) {
+  TelemetryPacket copyWith({
+    bool? isSynced,
+    String? fallState,
+    bool? isCharging,
+    int? battery,
+    int? rssi,
+    double? riskScore,
+  }) {
     return TelemetryPacket(
       deviceId: deviceId,
       timestamp: timestamp,
@@ -173,9 +191,11 @@ class TelemetryPacket {
       movementState: movementState,
       imuStatus: imuStatus,
       overallDataQuality: overallDataQuality,
-      riskScore: riskScore,
+      riskScore: riskScore ?? this.riskScore,
       fallState: fallState ?? this.fallState,
-      battery: battery,
+      battery: battery ?? this.battery,
+      isCharging: isCharging ?? this.isCharging,
+      rssi: rssi ?? this.rssi,
       isSynced: isSynced ?? this.isSynced,
     );
   }

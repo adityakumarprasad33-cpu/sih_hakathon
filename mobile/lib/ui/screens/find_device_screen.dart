@@ -1,0 +1,384 @@
+import 'package:flutter/material.dart';
+import 'package:google_fonts/google_fonts.dart';
+import 'package:provider/provider.dart';
+import 'package:samadhan_health/core/theme/app_theme.dart';
+import 'package:samadhan_health/modules/ble/ble_gateway_service.dart';
+import 'package:samadhan_health/modules/guardian/wearable_guardian_service.dart';
+
+class FindDeviceScreen extends StatefulWidget {
+  const FindDeviceScreen({Key? key}) : super(key: key);
+
+  @override
+  State<FindDeviceScreen> createState() => _FindDeviceScreenState();
+}
+
+class _FindDeviceScreenState extends State<FindDeviceScreen> with SingleTickerProviderStateMixin {
+  late AnimationController _radarController;
+  bool _isRinging = false;
+
+  @override
+  void initState() {
+    super.initState();
+    _radarController = AnimationController(
+      vsync: this,
+      duration: const Duration(seconds: 2),
+    )..repeat();
+  }
+
+  @override
+  void dispose() {
+    _radarController.dispose();
+    super.dispose();
+  }
+
+  void _triggerBuzzer() async {
+    final ble = context.read<BleGatewayService>();
+    setState(() {
+      _isRinging = true;
+    });
+
+    await ble.triggerFindDeviceBuzzer();
+
+    if (mounted) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Row(
+            children: const [
+              Icon(Icons.volume_up_rounded, color: Colors.white),
+              SizedBox(width: 10),
+              Text('Band buzzer triggered! Listen for audio chime.'),
+            ],
+          ),
+          backgroundColor: AppTheme.primaryTeal,
+          duration: const Duration(seconds: 2),
+        ),
+      );
+    }
+
+    await Future.delayed(const Duration(milliseconds: 1500));
+    if (mounted) {
+      setState(() {
+        _isRinging = false;
+      });
+    }
+  }
+
+  Color _getDistanceColor(double distance) {
+    if (distance < 1.5) return AppTheme.primaryTeal;
+    if (distance < 5.0) return Colors.amber;
+    if (distance < 8.0) return Colors.orange;
+    return Colors.redAccent;
+  }
+
+  String _getProximityLabel(double distance) {
+    if (distance < 1.5) return 'Very Close • Within Reach';
+    if (distance < 5.0) return 'Nearby • In Same Room';
+    if (distance < 8.0) return 'Far • Walking Away';
+    return 'Out of Range • Move Closer';
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final guardian = context.watch<WearableGuardianService>();
+    final ble = context.watch<BleGatewayService>();
+    final distance = guardian.estimatedDistance;
+    final color = _getDistanceColor(distance);
+
+    return Scaffold(
+      backgroundColor: const Color(0xFF0A0E1A),
+      appBar: AppBar(
+        backgroundColor: Colors.transparent,
+        elevation: 0,
+        title: Text(
+          'FIND MY WEARABLE',
+          style: GoogleFonts.outfit(
+            fontSize: 16,
+            fontWeight: FontWeight.bold,
+            letterSpacing: 2.0,
+            color: Colors.white,
+          ),
+        ),
+        centerTitle: true,
+        actions: [
+          IconButton(
+            icon: const Icon(Icons.refresh_rounded, color: Colors.white70),
+            onPressed: () => guardian.checkPermissions(),
+          ),
+        ],
+      ),
+      body: SafeArea(
+        child: Column(
+          children: [
+            const SizedBox(height: 16),
+
+            // Connected Device Badge
+            Container(
+              padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+              decoration: BoxDecoration(
+                color: const Color(0xFF131B2E),
+                borderRadius: BorderRadius.circular(20),
+                border: Border.all(color: Colors.white12),
+              ),
+              child: Row(
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  Container(
+                    width: 8,
+                    height: 8,
+                    decoration: BoxDecoration(
+                      shape: BoxShape.circle,
+                      color: ble.isConnected ? AppTheme.primaryTeal : Colors.orange,
+                    ),
+                  ),
+                  const SizedBox(width: 8),
+                  Text(
+                    ble.connectedDevice?.platformName.isNotEmpty == true
+                        ? ble.connectedDevice!.platformName
+                        : 'SAMADHAN-BAND-ESP32',
+                    style: GoogleFonts.inter(
+                      fontSize: 12,
+                      fontWeight: FontWeight.w600,
+                      color: Colors.white70,
+                    ),
+                  ),
+                ],
+              ),
+            ),
+
+            const Spacer(),
+
+            // Animated Sonar Radar Visualizer
+            Center(
+              child: SizedBox(
+                width: 280,
+                height: 280,
+                child: AnimatedBuilder(
+                  animation: _radarController,
+                  builder: (context, child) {
+                    final ripple1 = _radarController.value;
+                    final ripple2 = (ripple1 + 0.33) % 1.0;
+                    final ripple3 = (ripple1 + 0.66) % 1.0;
+
+                    return Stack(
+                      alignment: Alignment.center,
+                      children: [
+                        // Ripple Ring 1
+                        Container(
+                          width: 280 * ripple1,
+                          height: 280 * ripple1,
+                          decoration: BoxDecoration(
+                            shape: BoxShape.circle,
+                            border: Border.all(
+                              color: color.withOpacity((1.0 - ripple1) * 0.4),
+                              width: 2,
+                            ),
+                          ),
+                        ),
+                        // Ripple Ring 2
+                        Container(
+                          width: 280 * ripple2,
+                          height: 280 * ripple2,
+                          decoration: BoxDecoration(
+                            shape: BoxShape.circle,
+                            border: Border.all(
+                              color: color.withOpacity((1.0 - ripple2) * 0.4),
+                              width: 2,
+                            ),
+                          ),
+                        ),
+                        // Ripple Ring 3
+                        Container(
+                          width: 280 * ripple3,
+                          height: 280 * ripple3,
+                          decoration: BoxDecoration(
+                            shape: BoxShape.circle,
+                            border: Border.all(
+                              color: color.withOpacity((1.0 - ripple3) * 0.4),
+                              width: 2,
+                            ),
+                          ),
+                        ),
+                        // Fixed Outer Grid Rings
+                        Container(
+                          width: 240,
+                          height: 240,
+                          decoration: BoxDecoration(
+                            shape: BoxShape.circle,
+                            border: Border.all(color: Colors.white.withOpacity(0.06), width: 1),
+                          ),
+                        ),
+                        Container(
+                          width: 160,
+                          height: 160,
+                          decoration: BoxDecoration(
+                            shape: BoxShape.circle,
+                            border: Border.all(color: Colors.white.withOpacity(0.08), width: 1),
+                          ),
+                        ),
+
+                        // Center Pulsing Device Icon
+                        Container(
+                          width: 88,
+                          height: 88,
+                          decoration: BoxDecoration(
+                            shape: BoxShape.circle,
+                            gradient: RadialGradient(
+                              colors: [
+                                color,
+                                color.withOpacity(0.7),
+                              ],
+                            ),
+                            boxShadow: [
+                              BoxShadow(
+                                color: color.withOpacity(0.5),
+                                blurRadius: 24,
+                                spreadRadius: 4,
+                              ),
+                            ],
+                          ),
+                          child: Icon(
+                            _isRinging ? Icons.volume_up_rounded : Icons.watch_rounded,
+                            size: 40,
+                            color: Colors.black,
+                          ),
+                        ),
+                      ],
+                    );
+                  },
+                ),
+              ),
+            ),
+
+            const Spacer(),
+
+            // Distance Metric Card
+            Container(
+              margin: const EdgeInsets.symmetric(horizontal: 24),
+              padding: const EdgeInsets.symmetric(vertical: 20, horizontal: 24),
+              decoration: BoxDecoration(
+                color: const Color(0xFF131B2E),
+                borderRadius: BorderRadius.circular(24),
+                border: Border.all(color: Colors.white12),
+              ),
+              child: Column(
+                children: [
+                  Row(
+                    mainAxisAlignment: MainAxisAlignment.center,
+                    crossAxisAlignment: CrossAxisAlignment.baseline,
+                    textBaseline: TextBaseline.alphabetic,
+                    children: [
+                      Text(
+                        distance.toStringAsFixed(1),
+                        style: GoogleFonts.outfit(
+                          fontSize: 44,
+                          fontWeight: FontWeight.bold,
+                          color: color,
+                        ),
+                      ),
+                      const SizedBox(width: 6),
+                      Text(
+                        'meters away',
+                        style: GoogleFonts.inter(
+                          fontSize: 16,
+                          color: Colors.white60,
+                        ),
+                      ),
+                    ],
+                  ),
+                  const SizedBox(height: 6),
+                  Text(
+                    _getProximityLabel(distance),
+                    style: GoogleFonts.inter(
+                      fontSize: 13,
+                      fontWeight: FontWeight.w600,
+                      color: color,
+                    ),
+                  ),
+                  const SizedBox(height: 14),
+                  Row(
+                    mainAxisAlignment: MainAxisAlignment.center,
+                    children: [
+                      const Icon(Icons.signal_cellular_alt_rounded, size: 14, color: Colors.white38),
+                      const SizedBox(width: 6),
+                      Text(
+                        'RSSI: ${guardian.lastRssi} dBm (BLE 5.0 Beacon)',
+                        style: GoogleFonts.jetBrainsMono(
+                          fontSize: 11,
+                          color: Colors.white38,
+                        ),
+                      ),
+                    ],
+                  ),
+                ],
+              ),
+            ),
+
+            const SizedBox(height: 20),
+
+            // Sound Buzzer Button
+            Padding(
+              padding: const EdgeInsets.symmetric(horizontal: 24.0),
+              child: ElevatedButton.icon(
+                onPressed: _isRinging ? null : _triggerBuzzer,
+                style: ElevatedButton.styleFrom(
+                  backgroundColor: AppTheme.primaryTeal,
+                  foregroundColor: Colors.black,
+                  minimumSize: const Size(double.infinity, 56),
+                  shape: RoundedRectangleBorder(
+                    borderRadius: BorderRadius.circular(16),
+                  ),
+                  elevation: 6,
+                ),
+                icon: const Icon(Icons.volume_up_rounded, size: 22),
+                label: Text(
+                  _isRinging ? 'RINGING BAND BUZZER...' : 'RING WEARABLE BUZZER',
+                  style: GoogleFonts.inter(
+                    fontWeight: FontWeight.bold,
+                    letterSpacing: 1.0,
+                    fontSize: 14,
+                  ),
+                ),
+              ),
+            ),
+
+            const SizedBox(height: 12),
+
+            // Simulation Controls for Testing
+            if (ble.isSimulationActive) ...[
+              Padding(
+                padding: const EdgeInsets.symmetric(horizontal: 24.0),
+                child: Row(
+                  children: [
+                    Expanded(
+                      child: OutlinedButton(
+                        onPressed: () => ble.simulateMoveClose(),
+                        style: OutlinedButton.styleFrom(
+                          foregroundColor: Colors.white70,
+                          side: const BorderSide(color: Colors.white24),
+                        ),
+                        child: const Text('Sim: Move Close (<1.5m)'),
+                      ),
+                    ),
+                    const SizedBox(width: 10),
+                    Expanded(
+                      child: OutlinedButton(
+                        onPressed: () => ble.simulateMoveAway(),
+                        style: OutlinedButton.styleFrom(
+                          foregroundColor: Colors.white70,
+                          side: const BorderSide(color: Colors.white24),
+                        ),
+                        child: const Text('Sim: Move Away (>8m)'),
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+            ],
+
+            const SizedBox(height: 16),
+          ],
+        ),
+      ),
+    );
+  }
+}

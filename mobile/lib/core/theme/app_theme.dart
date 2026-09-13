@@ -8,7 +8,9 @@ class AppTheme {
   static const Color border = Color(0xFF22324E);
 
   static const Color primary = Color(0xFF00F2FE); // Glowing Cyan
+  static const Color primaryTeal = Color(0xFF00F2FE); // Alias for primary
   static const Color secondary = Color(0xFF4FACFE); // Electric Blue
+  static const Color accentBlue = Color(0xFF4FACFE); // Alias for secondary
   static const Color success = Color(0xFF00E676); // Bio Green
   static const Color warning = Color(0xFFFFB300); // Amber Warning
   static const Color danger = Color(0xFFFF3366); // Cardiac Alert Red

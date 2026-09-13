@@ -5,9 +5,9 @@ import 'package:samadhan_health/core/theme/app_theme.dart';
 import 'package:samadhan_health/modules/ai/samadhan_ai_service.dart';
 import 'package:samadhan_health/modules/auth/auth_service.dart';
 import 'package:samadhan_health/modules/ble/ble_gateway_service.dart';
+import 'package:samadhan_health/modules/guardian/wearable_guardian_service.dart';
 import 'package:samadhan_health/modules/sync/firebase_sync_service.dart';
-import 'package:samadhan_health/ui/screens/auth_screen.dart';
-import 'package:samadhan_health/ui/screens/home_dashboard_screen.dart';
+import 'package:samadhan_health/ui/screens/splash_screen.dart';
 
 void main() {
   WidgetsFlutterBinding.ensureInitialized();
@@ -28,23 +28,32 @@ class SamadhanHealthApp extends StatelessWidget {
       providers: [
         ChangeNotifierProvider(create: (_) => AuthService()),
         ChangeNotifierProvider(create: (_) => FirebaseSyncService()),
-        ChangeNotifierProxyProvider<FirebaseSyncService, BleGatewayService>(
-          create: (context) => BleGatewayService(
-            Provider.of<FirebaseSyncService>(context, listen: false),
-          ),
-          update: (context, sync, previous) => previous ?? BleGatewayService(sync),
+        ChangeNotifierProvider(create: (_) => WearableGuardianService()),
+        ChangeNotifierProxyProvider2<FirebaseSyncService, WearableGuardianService, BleGatewayService>(
+          create: (context) {
+            final sync = Provider.of<FirebaseSyncService>(context, listen: false);
+            final guardian = Provider.of<WearableGuardianService>(context, listen: false);
+            final ble = BleGatewayService(sync);
+            ble.setGuardianService(guardian);
+            return ble;
+          },
+          update: (context, sync, guardian, previous) {
+            if (previous != null) {
+              previous.setGuardianService(guardian);
+              return previous;
+            }
+            final ble = BleGatewayService(sync);
+            ble.setGuardianService(guardian);
+            return ble;
+          },
         ),
         ChangeNotifierProvider(create: (_) => SamadhanAiService()),
       ],
-      child: Consumer<AuthService>(
-        builder: (context, auth, _) {
-          return MaterialApp(
-            title: 'Samadhan Health',
-            debugShowCheckedModeBanner: false,
-            theme: AppTheme.darkTheme,
-            home: auth.isAuthenticated ? const HomeDashboardScreen() : const AuthScreen(),
-          );
-        },
+      child: MaterialApp(
+        title: 'Samadhan Health',
+        debugShowCheckedModeBanner: false,
+        theme: AppTheme.darkTheme,
+        home: const SplashScreen(),
       ),
     );
   }
