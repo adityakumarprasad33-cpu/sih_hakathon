@@ -109,11 +109,11 @@ class LiveVitalsScreen extends StatelessWidget {
                                 gridData: FlGridData(
                                   show: true,
                                   getDrawingHorizontalLine: (val) => FlLine(
-                                    color: AppTheme.border.withOpacity(0.5),
+                                    color: AppTheme.border.withValues(alpha: 0.5),
                                     strokeWidth: 1,
                                   ),
                                   getDrawingVerticalLine: (val) => FlLine(
-                                    color: AppTheme.border.withOpacity(0.5),
+                                    color: AppTheme.border.withValues(alpha: 0.5),
                                     strokeWidth: 1,
                                   ),
                                 ),
@@ -131,7 +131,7 @@ class LiveVitalsScreen extends StatelessWidget {
                                     dotData: const FlDotData(show: false),
                                     belowBarData: BarAreaData(
                                       show: true,
-                                      color: AppTheme.danger.withOpacity(0.12),
+                                      color: AppTheme.danger.withValues(alpha: 0.12),
                                     ),
                                   ),
                                 ],

@@ -24,7 +24,6 @@ class _SplashScreenState extends State<SplashScreen> with SingleTickerProviderSt
 
   String _loadingMessage = 'Booting Samadhan Edge Guardian...';
   double _progress = 0.1;
-  
 
   final List<String> _steps = [
     'Restoring secure user session...',
@@ -44,11 +43,11 @@ class _SplashScreenState extends State<SplashScreen> with SingleTickerProviderSt
       duration: const Duration(milliseconds: 1400),
     )..repeat(reverse: true);
 
-    _pulseScale = Tween<double>(begin: 0.92, end: 1.12).animate(
+    _pulseScale = Tween<double>(begin: 0.94, end: 1.08).animate(
       CurvedAnimation(parent: _pulseController, curve: Curves.easeInOut),
     );
 
-    _glowOpacity = Tween<double>(begin: 0.3, end: 0.85).animate(
+    _glowOpacity = Tween<double>(begin: 0.25, end: 0.75).animate(
       CurvedAnimation(parent: _pulseController, curve: Curves.easeInOut),
     );
 
@@ -56,61 +55,70 @@ class _SplashScreenState extends State<SplashScreen> with SingleTickerProviderSt
   }
 
   Future<void> _startBootSequence() async {
-    final auth = Provider.of<AuthService>(context, listen: false);
-    final ble = Provider.of<BleGatewayService>(context, listen: false);
-    final guardian = Provider.of<WearableGuardianService>(context, listen: false);
-    final sync = Provider.of<FirebaseSyncService>(context, listen: false);
+    final auth = context.read<AuthService>();
+    final ble = context.read<BleGatewayService>();
+    final guardian = context.read<WearableGuardianService>();
+    final sync = context.read<FirebaseSyncService>();
 
-    // Link guardian to ble
-    ble.setGuardianService(guardian);
-
-    // Step 1: Session
-    await _advanceStep(0, 0.25);
-    await auth.loadSavedSession();
-    if (auth.currentUser != null) {
-      ble.setUserUid(auth.currentUser!.uid);
-    }
+    // Step 1: User Session
+    await Future.delayed(const Duration(milliseconds: 350));
+    if (!mounted) return;
+    setState(() {
+      _loadingMessage = _steps[0];
+      _progress = 0.25;
+    });
 
     // Step 2: Bluetooth & Auto-reconnect
-    await _advanceStep(1, 0.45);
-    await ble.autoReconnectIfConfigured();
-
-    // Step 3: Guardian Permissions
-    await _advanceStep(2, 0.65);
-    await guardian.checkPermissions();
-
-    // Step 4: Database ping & Buffer preload
-    await _advanceStep(3, 0.82);
-    await sync.testDatabaseConnection();
-
-    // Step 5: Risk engine and finish
-    await _advanceStep(4, 0.95);
     await Future.delayed(const Duration(milliseconds: 400));
-    await _advanceStep(5, 1.0);
-
-    await Future.delayed(const Duration(milliseconds: 500));
     if (!mounted) return;
+    setState(() {
+      _loadingMessage = _steps[1];
+      _progress = 0.45;
+    });
+    ble.autoReconnectIfConfigured();
+
+    // Step 3: Guardian location & proximity permissions
+    await Future.delayed(const Duration(milliseconds: 350));
+    if (!mounted) return;
+    setState(() {
+      _loadingMessage = _steps[2];
+      _progress = 0.65;
+    });
+    guardian.requestLocationAndBluetoothPermissions();
+
+    // Step 4: Sync & cloud initialization
+    await Future.delayed(const Duration(milliseconds: 350));
+    if (!mounted) return;
+    setState(() {
+      _loadingMessage = _steps[3];
+      _progress = 0.85;
+    });
+    if (auth.currentUser != null) {
+      sync.flushOfflineBuffer(auth.currentUser!.uid);
+    }
+
+    // Step 5: Ready
+    await Future.delayed(const Duration(milliseconds: 300));
+    if (!mounted) return;
+    setState(() {
+      _loadingMessage = _steps[5];
+      _progress = 1.0;
+    });
+
+    await Future.delayed(const Duration(milliseconds: 350));
+    if (!mounted) return;
+
+    final hasUser = auth.currentUser != null;
 
     Navigator.of(context).pushReplacement(
       PageRouteBuilder(
         transitionDuration: const Duration(milliseconds: 600),
         pageBuilder: (context, anim1, anim2) =>
-            auth.isAuthenticated ? const HomeDashboardScreen() : const AuthScreen(),
-        transitionsBuilder: (context, anim1, anim2, child) {
-          return FadeTransition(opacity: anim1, child: child);
-        },
+            hasUser ? const HomeDashboardScreen() : const AuthScreen(),
+        transitionsBuilder: (context, anim1, anim2, child) =>
+            FadeTransition(opacity: anim1, child: child),
       ),
     );
-  }
-
-  Future<void> _advanceStep(int stepIndex, double progress) async {
-    if (!mounted) return;
-    setState(() {
-      
-      _loadingMessage = _steps[stepIndex];
-      _progress = progress;
-    });
-    await Future.delayed(const Duration(milliseconds: 320));
   }
 
   @override
@@ -122,229 +130,183 @@ class _SplashScreenState extends State<SplashScreen> with SingleTickerProviderSt
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      backgroundColor: const Color(0xFF0A0E1A),
-      body: Stack(
-        children: [
-          // Ambient Glow Background
-          Positioned(
-            top: -100,
-            right: -100,
-            child: Container(
-              width: 320,
-              height: 320,
-              decoration: BoxDecoration(
-                shape: BoxShape.circle,
-                gradient: RadialGradient(
-                  colors: [
-                    AppTheme.primaryTeal.withOpacity(0.18),
-                    Colors.transparent,
-                  ],
-                ),
-              ),
-            ),
-          ),
-          Positioned(
-            bottom: -80,
-            left: -80,
-            child: Container(
-              width: 300,
-              height: 300,
-              decoration: BoxDecoration(
-                shape: BoxShape.circle,
-                gradient: RadialGradient(
-                  colors: [
-                    AppTheme.accentBlue.withOpacity(0.15),
-                    Colors.transparent,
-                  ],
-                ),
-              ),
-            ),
-          ),
+      backgroundColor: AppTheme.background,
+      body: SafeArea(
+        child: Center(
+          child: Padding(
+            padding: const EdgeInsets.symmetric(horizontal: 32.0),
+            child: Column(
+              mainAxisAlignment: MainAxisAlignment.center,
+              children: [
+                const Spacer(),
 
-          SafeArea(
-            child: Center(
-              child: Padding(
-                padding: const EdgeInsets.symmetric(horizontal: 32.0),
-                child: Column(
-                  mainAxisAlignment: MainAxisAlignment.center,
-                  children: [
-                    const Spacer(),
-
-                    // Animated Concentric Pulsing Radar Icon
-                    AnimatedBuilder(
-                      animation: _pulseController,
-                      builder: (context, child) {
-                        return Stack(
-                          alignment: Alignment.center,
-                          children: [
-                            // Outer Wave Ring
-                            Container(
-                              width: 140 * _pulseScale.value,
-                              height: 140 * _pulseScale.value,
-                              decoration: BoxDecoration(
-                                shape: BoxShape.circle,
-                                border: Border.all(
-                                  color: AppTheme.primaryTeal.withOpacity(0.25 * (1 - _pulseController.value)),
-                                  width: 2,
-                                ),
-                              ),
+                // Animated Concentric Pulsing Radar Icon
+                AnimatedBuilder(
+                  animation: _pulseController,
+                  builder: (context, child) {
+                    return Stack(
+                      alignment: Alignment.center,
+                      children: [
+                        // Outer Wave Ring
+                        Container(
+                          width: 140 * _pulseScale.value,
+                          height: 140 * _pulseScale.value,
+                          decoration: BoxDecoration(
+                            shape: BoxShape.circle,
+                            border: Border.all(
+                              color: AppTheme.primaryTeal.withValues(alpha: 0.18 * (1 - _pulseController.value)),
+                              width: 2,
                             ),
-                            // Mid Wave Ring
-                            Container(
-                              width: 110 * _pulseScale.value,
-                              height: 110 * _pulseScale.value,
-                              decoration: BoxDecoration(
-                                shape: BoxShape.circle,
-                                border: Border.all(
-                                  color: AppTheme.accentBlue.withOpacity(0.4 * _glowOpacity.value),
-                                  width: 2,
-                                ),
-                              ),
+                          ),
+                        ),
+                        // Mid Wave Ring
+                        Container(
+                          width: 110 * _pulseScale.value,
+                          height: 110 * _pulseScale.value,
+                          decoration: BoxDecoration(
+                            shape: BoxShape.circle,
+                            border: Border.all(
+                              color: AppTheme.primaryTeal.withValues(alpha: 0.25 * _glowOpacity.value),
+                              width: 2,
                             ),
-                            // Core Glowing Badge
-                            Container(
-                              width: 84,
-                              height: 84,
-                              decoration: BoxDecoration(
-                                shape: BoxShape.circle,
-                                gradient: LinearGradient(
-                                  colors: [
-                                    AppTheme.primaryTeal,
-                                    AppTheme.accentBlue,
-                                  ],
-                                  begin: Alignment.topLeft,
-                                  end: Alignment.bottomRight,
-                                ),
-                                boxShadow: [
-                                  BoxShadow(
-                                    color: AppTheme.primaryTeal.withOpacity(_glowOpacity.value * 0.7),
-                                    blurRadius: 28,
-                                    spreadRadius: 4,
-                                  ),
-                                ],
-                              ),
-                              child: const Icon(
-                                Icons.monitor_heart_rounded,
-                                color: Colors.white,
-                                size: 44,
-                              ),
-                            ),
-                          ],
-                        );
-                      },
-                    ),
-
-                    const SizedBox(height: 36),
-
-                    // App Title
-                    Text(
-                      'SAMADHAN HEALTH',
-                      style: GoogleFonts.outfit(
-                        fontSize: 26,
-                        fontWeight: FontWeight.bold,
-                        letterSpacing: 3.5,
-                        color: Colors.white,
-                      ),
-                    ),
-
-                    const SizedBox(height: 8),
-
-                    // Subtitle
-                    Text(
-                      'Edge-AI Wearable & Guardian Gateway',
-                      style: GoogleFonts.inter(
-                        fontSize: 13,
-                        fontWeight: FontWeight.w400,
-                        color: Colors.white60,
-                        letterSpacing: 0.8,
-                      ),
-                    ),
-
-                    const Spacer(),
-
-                    // Status Indicator Box
-                    Container(
-                      padding: const EdgeInsets.symmetric(horizontal: 18, vertical: 14),
-                      decoration: BoxDecoration(
-                        color: const Color(0xFF131B2E),
-                        borderRadius: BorderRadius.circular(16),
-                        border: Border.all(color: Colors.white10),
-                      ),
-                      child: Column(
-                        children: [
-                          Row(
-                            children: [
-                              SizedBox(
-                                width: 16,
-                                height: 16,
-                                child: CircularProgressIndicator(
-                                  strokeWidth: 2,
-                                  valueColor: AlwaysStoppedAnimation<Color>(AppTheme.primaryTeal),
-                                ),
-                              ),
-                              const SizedBox(width: 12),
-                              Expanded(
-                                child: Text(
-                                  _loadingMessage,
-                                  style: GoogleFonts.inter(
-                                    fontSize: 12,
-                                    color: Colors.white.withOpacity(0.85),
-                                    fontWeight: FontWeight.w500,
-                                  ),
-                                  maxLines: 1,
-                                  overflow: TextOverflow.ellipsis,
-                                ),
-                              ),
-                              Text(
-                                '${(_progress * 100).toInt()}%',
-                                style: GoogleFonts.jetBrainsMono(
-                                  fontSize: 11,
-                                  color: AppTheme.primaryTeal,
-                                  fontWeight: FontWeight.bold,
-                                ),
+                          ),
+                        ),
+                        // Core Glowing Badge
+                        Container(
+                          width: 84,
+                          height: 84,
+                          decoration: BoxDecoration(
+                            shape: BoxShape.circle,
+                            color: AppTheme.primaryTeal,
+                            boxShadow: [
+                              BoxShadow(
+                                color: AppTheme.primaryTeal.withValues(alpha: 0.3),
+                                blurRadius: 24,
+                                spreadRadius: 4,
                               ),
                             ],
                           ),
-                          const SizedBox(height: 12),
-                          ClipRRect(
-                            borderRadius: BorderRadius.circular(4),
-                            child: LinearProgressIndicator(
-                              value: _progress,
-                              minHeight: 4,
-                              backgroundColor: Colors.white.withOpacity(0.08),
+                          child: const Icon(
+                            Icons.monitor_heart_rounded,
+                            color: Colors.white,
+                            size: 42,
+                          ),
+                        ),
+                      ],
+                    );
+                  },
+                ),
+
+                const SizedBox(height: 32),
+
+                // App Title
+                Text(
+                  'SAMADHAN HEALTH',
+                  style: GoogleFonts.outfit(
+                    fontSize: 24,
+                    fontWeight: FontWeight.bold,
+                    letterSpacing: 2.0,
+                    color: AppTheme.textPrimary,
+                  ),
+                ),
+
+                const SizedBox(height: 6),
+
+                // Subtitle
+                Text(
+                  'Edge-AI Wearable & Guardian Gateway',
+                  style: GoogleFonts.inter(
+                    fontSize: 13,
+                    fontWeight: FontWeight.w400,
+                    color: AppTheme.textSecondary,
+                    letterSpacing: 0.5,
+                  ),
+                ),
+
+                const Spacer(),
+
+                // Status Indicator Box
+                Container(
+                  padding: const EdgeInsets.symmetric(horizontal: 18, vertical: 14),
+                  decoration: BoxDecoration(
+                    color: AppTheme.surface,
+                    borderRadius: BorderRadius.circular(16),
+                    border: Border.all(color: AppTheme.border),
+                    boxShadow: AppTheme.cardShadow,
+                  ),
+                  child: Column(
+                    children: [
+                      Row(
+                        children: [
+                          const SizedBox(
+                            width: 16,
+                            height: 16,
+                            child: CircularProgressIndicator(
+                              strokeWidth: 2,
                               valueColor: AlwaysStoppedAnimation<Color>(AppTheme.primaryTeal),
+                            ),
+                          ),
+                          const SizedBox(width: 12),
+                          Expanded(
+                            child: Text(
+                              _loadingMessage,
+                              style: GoogleFonts.inter(
+                                fontSize: 12,
+                                color: AppTheme.textPrimary,
+                                fontWeight: FontWeight.w500,
+                              ),
+                              maxLines: 1,
+                              overflow: TextOverflow.ellipsis,
+                            ),
+                          ),
+                          Text(
+                            '${(_progress * 100).toInt()}%',
+                            style: GoogleFonts.jetBrainsMono(
+                              fontSize: 11,
+                              color: AppTheme.primaryTeal,
+                              fontWeight: FontWeight.bold,
                             ),
                           ),
                         ],
                       ),
-                    ),
-
-                    const SizedBox(height: 18),
-
-                    // Medical Regulatory Compliance Tag
-                    Row(
-                      mainAxisAlignment: MainAxisAlignment.center,
-                      children: [
-                        const Icon(Icons.shield_outlined, size: 13, color: Colors.white38),
-                        const SizedBox(width: 6),
-                        Text(
-                          'ISO 13485 • ESP32-S3 BLE 5.0 Gateway',
-                          style: GoogleFonts.inter(
-                            fontSize: 10,
-                            color: Colors.white38,
-                            letterSpacing: 0.6,
-                          ),
+                      const SizedBox(height: 12),
+                      ClipRRect(
+                        borderRadius: BorderRadius.circular(4),
+                        child: LinearProgressIndicator(
+                          value: _progress,
+                          minHeight: 4,
+                          backgroundColor: AppTheme.surfaceSubtle,
+                          valueColor: const AlwaysStoppedAnimation<Color>(AppTheme.primaryTeal),
                         ),
-                      ],
-                    ),
+                      ),
+                    ],
+                  ),
+                ),
 
-                    const SizedBox(height: 16),
+                const SizedBox(height: 18),
+
+                // Medical Regulatory Compliance Tag
+                Row(
+                  mainAxisAlignment: MainAxisAlignment.center,
+                  children: [
+                    const Icon(Icons.shield_outlined, size: 14, color: AppTheme.textSecondary),
+                    const SizedBox(width: 6),
+                    Text(
+                      'ISO 13485 • ESP32-S3 BLE 5.0 Gateway',
+                      style: GoogleFonts.inter(
+                        fontSize: 11,
+                        color: AppTheme.textSecondary,
+                        letterSpacing: 0.4,
+                      ),
+                    ),
                   ],
                 ),
-              ),
+
+                const SizedBox(height: 16),
+              ],
             ),
           ),
-        ],
+        ),
       ),
     );
   }

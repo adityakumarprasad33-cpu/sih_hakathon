@@ -52,7 +52,7 @@ class SamadhanHealthApp extends StatelessWidget {
       child: MaterialApp(
         title: 'Samadhan Health',
         debugShowCheckedModeBanner: false,
-        theme: AppTheme.darkTheme,
+        theme: AppTheme.lightTheme,
         home: const SplashScreen(),
       ),
     );

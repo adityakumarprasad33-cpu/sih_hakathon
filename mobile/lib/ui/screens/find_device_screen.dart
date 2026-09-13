@@ -7,7 +7,7 @@ import 'package:samadhan_health/modules/guardian/wearable_guardian_service.dart'
 import 'package:samadhan_health/ui/screens/device_pairing_screen.dart';
 
 class FindDeviceScreen extends StatefulWidget {
-  const FindDeviceScreen({Key? key}) : super(key: key);
+  const FindDeviceScreen({super.key});
 
   @override
   State<FindDeviceScreen> createState() => _FindDeviceScreenState();
@@ -71,92 +71,73 @@ class _FindDeviceScreenState extends State<FindDeviceScreen> with SingleTickerPr
     }
   }
 
-  Color _getDistanceColor(double distance) {
-    if (distance < 1.5) return AppTheme.primaryTeal;
-    if (distance < 5.0) return Colors.amber;
-    if (distance < 8.0) return Colors.orange;
-    return Colors.redAccent;
+  String _getProximityLabel(double distance) {
+    if (distance < 1.0) return 'Immediate Proximity (<1m)';
+    if (distance < 3.0) return 'Near Room Distance (~1-3m)';
+    if (distance < 7.0) return 'Medium Range (~3-7m)';
+    return 'Far / Marginal Range (>7m)';
   }
 
-  String _getProximityLabel(double distance) {
-    if (distance < 1.5) return 'Very Close • Within Immediate Reach';
-    if (distance < 5.0) return 'Nearby • In Same Room';
-    if (distance < 8.0) return 'Far • Walking Away';
-    return 'Weak Signal • Move Closer';
+  Color _getProximityColor(double distance) {
+    if (distance < 1.5) return AppTheme.primaryTeal;
+    if (distance < 4.0) return AppTheme.accentBlue;
+    if (distance < 8.0) return Colors.amber;
+    return Colors.deepOrangeAccent;
   }
 
   @override
   Widget build(BuildContext context) {
-    final guardian = context.watch<WearableGuardianService>();
     final ble = context.watch<BleGatewayService>();
+    final guardian = context.watch<WearableGuardianService>();
     final distance = guardian.estimatedDistance;
-    final color = _getDistanceColor(distance);
+    final color = ble.isConnected ? _getProximityColor(distance) : Colors.grey;
 
     return Scaffold(
-      backgroundColor: const Color(0xFF0A0E1A),
+      backgroundColor: AppTheme.background,
       appBar: AppBar(
         backgroundColor: Colors.transparent,
         elevation: 0,
+        leading: IconButton(
+          icon: const Icon(Icons.arrow_back_ios_new_rounded, color: AppTheme.textPrimary, size: 20),
+          onPressed: () => Navigator.pop(context),
+        ),
         title: Text(
-          'FIND MY WEARABLE',
+          'RADAR PROXIMITY FINDER',
           style: GoogleFonts.outfit(
             fontSize: 16,
             fontWeight: FontWeight.bold,
-            letterSpacing: 2.0,
-            color: Colors.white,
+            letterSpacing: 1.2,
+            color: AppTheme.textPrimary,
           ),
         ),
-        centerTitle: true,
-        actions: [
-          IconButton(
-            icon: const Icon(Icons.refresh_rounded, color: Colors.white70),
-            tooltip: 'Refresh Proximity',
-            onPressed: () => guardian.checkPermissions(),
-          ),
-        ],
       ),
       body: SafeArea(
         child: Column(
           children: [
             const SizedBox(height: 16),
 
-            // Connected Device Badge
-            Container(
-              padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
-              decoration: BoxDecoration(
-                color: const Color(0xFF131B2E),
-                borderRadius: BorderRadius.circular(20),
-                border: Border.all(color: Colors.white12),
+            // Radar Device Label
+            Text(
+              ble.connectedDevice?.platformName.isNotEmpty == true
+                  ? ble.connectedDevice!.platformName
+                  : (ble.isConnected ? 'Samadhan Wearable Band' : 'No Hardware Connected'),
+              style: GoogleFonts.inter(
+                fontSize: 16,
+                fontWeight: FontWeight.bold,
+                color: AppTheme.textPrimary,
               ),
-              child: Row(
-                mainAxisSize: MainAxisSize.min,
-                children: [
-                  Container(
-                    width: 8,
-                    height: 8,
-                    decoration: BoxDecoration(
-                      shape: BoxShape.circle,
-                      color: ble.isConnected ? AppTheme.primaryTeal : Colors.orange,
-                    ),
-                  ),
-                  const SizedBox(width: 8),
-                  Text(
-                    ble.connectedDevice?.platformName.isNotEmpty == true
-                        ? ble.connectedDevice!.platformName
-                        : (ble.isConnected ? 'SAMADHAN-BAND-ESP32' : 'NOT CONNECTED'),
-                    style: GoogleFonts.inter(
-                      fontSize: 12,
-                      fontWeight: FontWeight.w600,
-                      color: Colors.white70,
-                    ),
-                  ),
-                ],
-              ),
+            ),
+            const SizedBox(height: 4),
+            Text(
+              ble.isConnected
+                  ? 'Real-time BLE signal attenuation & distance estimation'
+                  : 'Connect wearable to view active radar tracking',
+              style: GoogleFonts.inter(fontSize: 12, color: AppTheme.textSecondary),
             ),
 
             const Spacer(),
 
-            // Animated Sonar Radar Visualizer
+            // Animated Radar Rings
             Center(
               child: SizedBox(
                 width: 280,
@@ -164,87 +145,95 @@ class _FindDeviceScreenState extends State<FindDeviceScreen> with SingleTickerPr
                 child: AnimatedBuilder(
                   animation: _radarController,
                   builder: (context, child) {
-                    final ripple1 = _radarController.value;
-                    final ripple2 = (ripple1 + 0.33) % 1.0;
-                    final ripple3 = (ripple1 + 0.66) % 1.0;
+                    final val = _radarController.value;
+                    final ripple1 = val;
+                    final ripple2 = (val + 0.33) % 1.0;
+                    final ripple3 = (val + 0.66) % 1.0;
 
                     return Stack(
                       alignment: Alignment.center,
                       children: [
-                        // Ripple Ring 1
+                        // Static Soft Grid Rings
+                        Container(
+                          width: 260,
+                          height: 260,
+                          decoration: BoxDecoration(
+                            shape: BoxShape.circle,
+                            border: Border.all(color: AppTheme.border, width: 1),
+                          ),
+                        ),
+                        Container(
+                          width: 180,
+                          height: 180,
+                          decoration: BoxDecoration(
+                            shape: BoxShape.circle,
+                            border: Border.all(color: AppTheme.border, width: 1),
+                          ),
+                        ),
+                        Container(
+                          width: 100,
+                          height: 100,
+                          decoration: BoxDecoration(
+                            shape: BoxShape.circle,
+                            border: Border.all(color: AppTheme.border, width: 1),
+                          ),
+                        ),
+
+                        // Animated Ripple Rings
                         Container(
                           width: 280 * ripple1,
                           height: 280 * ripple1,
                           decoration: BoxDecoration(
                             shape: BoxShape.circle,
                             border: Border.all(
-                              color: color.withOpacity((1.0 - ripple1) * 0.4),
+                              color: color.withValues(alpha: (1.0 - ripple1) * 0.35),
                               width: 2,
                             ),
                           ),
                         ),
-                        // Ripple Ring 2
                         Container(
                           width: 280 * ripple2,
                           height: 280 * ripple2,
                           decoration: BoxDecoration(
                             shape: BoxShape.circle,
                             border: Border.all(
-                              color: color.withOpacity((1.0 - ripple2) * 0.4),
+                              color: color.withValues(alpha: (1.0 - ripple2) * 0.35),
                               width: 2,
                             ),
                           ),
                         ),
-                        // Ripple Ring 3
                         Container(
                           width: 280 * ripple3,
                           height: 280 * ripple3,
                           decoration: BoxDecoration(
                             shape: BoxShape.circle,
                             border: Border.all(
-                              color: color.withOpacity((1.0 - ripple3) * 0.4),
+                              color: color.withValues(alpha: (1.0 - ripple3) * 0.35),
                               width: 2,
                             ),
-                          ),
-                        ),
-                        // Fixed Outer Grid Rings
-                        Container(
-                          width: 240,
-                          height: 240,
-                          decoration: BoxDecoration(
-                            shape: BoxShape.circle,
-                            border: Border.all(color: Colors.white.withOpacity(0.06), width: 1),
-                          ),
-                        ),
-                        Container(
-                          width: 160,
-                          height: 160,
-                          decoration: BoxDecoration(
-                            shape: BoxShape.circle,
-                            border: Border.all(color: Colors.white.withOpacity(0.08), width: 1),
                           ),
                         ),
 
                         // Center Pulsing Device Icon
                         Container(
-                          width: 80,
-                          height: 80,
+                          width: 76,
+                          height: 76,
                           decoration: BoxDecoration(
                             shape: BoxShape.circle,
-                            color: color.withOpacity(0.18),
+                            color: color.withValues(alpha: 0.12),
                             border: Border.all(color: color, width: 2),
                             boxShadow: [
                               BoxShadow(
-                                color: color.withOpacity(0.35),
-                                blurRadius: 20,
-                                spreadRadius: 4,
+                                color: color.withValues(alpha: 0.2),
+                                blurRadius: 16,
+                                spreadRadius: 2,
                               ),
                             ],
                           ),
                           child: Icon(
                             Icons.watch_rounded,
                             color: color,
-                            size: 38,
+                            size: 36,
                           ),
                         ),
                       ],
@@ -259,11 +248,12 @@ class _FindDeviceScreenState extends State<FindDeviceScreen> with SingleTickerPr
             // Distance & Proximity Readout
             Container(
               margin: const EdgeInsets.symmetric(horizontal: 24.0),
-              padding: const EdgeInsets.symmetric(horizontal: 20.0, vertical: 16.0),
+              padding: const EdgeInsets.symmetric(horizontal: 20.0, vertical: 18.0),
               decoration: BoxDecoration(
-                color: const Color(0xFF131B2E),
+                color: AppTheme.surface,
                 borderRadius: BorderRadius.circular(20),
-                border: Border.all(color: color.withOpacity(0.3)),
+                border: Border.all(color: AppTheme.border),
+                boxShadow: AppTheme.cardShadow,
               ),
               child: Column(
                 children: [
@@ -275,18 +265,18 @@ class _FindDeviceScreenState extends State<FindDeviceScreen> with SingleTickerPr
                       Text(
                         ble.isConnected ? distance.toStringAsFixed(1) : '--',
                         style: GoogleFonts.jetBrainsMono(
-                          fontSize: 44,
+                          fontSize: 42,
                           fontWeight: FontWeight.bold,
                           color: color,
                         ),
                       ),
-                      const SizedBox(width: 6),
+                      const SizedBox(width: 8),
                       Text(
                         'METERS',
                         style: GoogleFonts.outfit(
-                          fontSize: 16,
+                          fontSize: 14,
                           fontWeight: FontWeight.bold,
-                          color: Colors.white54,
+                          color: AppTheme.textSecondary,
                         ),
                       ),
                     ],
@@ -297,7 +287,7 @@ class _FindDeviceScreenState extends State<FindDeviceScreen> with SingleTickerPr
                     style: GoogleFonts.inter(
                       fontSize: 13,
                       fontWeight: FontWeight.w600,
-                      color: Colors.white70,
+                      color: AppTheme.textPrimary,
                     ),
                   ),
                   const SizedBox(height: 8),
@@ -310,7 +300,7 @@ class _FindDeviceScreenState extends State<FindDeviceScreen> with SingleTickerPr
                         'BLE RSSI: ${ble.currentRssi} dBm',
                         style: GoogleFonts.jetBrainsMono(
                           fontSize: 11,
-                          color: Colors.white38,
+                          color: AppTheme.textSecondary,
                         ),
                       ),
                     ],
@@ -329,20 +319,20 @@ class _FindDeviceScreenState extends State<FindDeviceScreen> with SingleTickerPr
                   onPressed: _isRinging ? null : _triggerBuzzer,
                   style: ElevatedButton.styleFrom(
                     backgroundColor: AppTheme.primaryTeal,
-                    foregroundColor: Colors.black,
-                    minimumSize: const Size.fromHeight(52),
+                    foregroundColor: Colors.white,
+                    minimumSize: const Size.fromHeight(50),
                     shape: RoundedRectangleBorder(
-                      borderRadius: BorderRadius.circular(16),
+                      borderRadius: BorderRadius.circular(14),
                     ),
-                    elevation: 4,
+                    elevation: 0,
                   ),
-                  icon: const Icon(Icons.volume_up_rounded, size: 22),
+                  icon: const Icon(Icons.volume_up_rounded, size: 20),
                   label: Text(
                     _isRinging ? 'RINGING BAND BUZZER...' : 'RING WEARABLE BUZZER',
                     style: GoogleFonts.inter(
-                      fontWeight: FontWeight.bold,
-                      letterSpacing: 1.0,
-                      fontSize: 14,
+                      fontWeight: FontWeight.w600,
+                      letterSpacing: 0.8,
+                      fontSize: 13,
                     ),
                   ),
                 ),
@@ -350,29 +340,30 @@ class _FindDeviceScreenState extends State<FindDeviceScreen> with SingleTickerPr
             ] else ...[
               Padding(
                 padding: const EdgeInsets.symmetric(horizontal: 24.0),
-                child: ElevatedButton.icon(
+                child: OutlinedButton.icon(
                   onPressed: () {
                     Navigator.push(
                       context,
                       MaterialPageRoute(builder: (_) => const DevicePairingScreen()),
                     );
                   },
-                  style: ElevatedButton.styleFrom(
-                    backgroundColor: const Color(0xFF131B2E),
+                  style: OutlinedButton.styleFrom(
                     foregroundColor: AppTheme.primaryTeal,
+                    backgroundColor: AppTheme.surface,
                     side: const BorderSide(color: AppTheme.primaryTeal),
-                    minimumSize: const Size.fromHeight(52),
+                    minimumSize: const Size.fromHeight(50),
                     shape: RoundedRectangleBorder(
-                      borderRadius: BorderRadius.circular(16),
+                      borderRadius: BorderRadius.circular(14),
                     ),
+                    elevation: 0,
                   ),
                   icon: const Icon(Icons.bluetooth_searching_rounded, size: 20),
                   label: Text(
                     'CONNECT WEARABLE BAND',
                     style: GoogleFonts.inter(
-                      fontWeight: FontWeight.bold,
-                      letterSpacing: 1.0,
-                      fontSize: 14,
+                      fontWeight: FontWeight.w600,
+                      letterSpacing: 0.8,
+                      fontSize: 13,
                     ),
                   ),
                 ),

@@ -1,11 +1,12 @@
 import 'package:flutter/material.dart';
+import 'package:google_fonts/google_fonts.dart';
 import 'package:samadhan_health/core/constants/app_constants.dart';
 import 'package:samadhan_health/core/theme/app_theme.dart';
 
 class ConnectionBadge extends StatelessWidget {
   final ConnectionStatus status;
 
-  const ConnectionBadge({Key? key, required this.status}) : super(key: key);
+  const ConnectionBadge({super.key, required this.status});
 
   @override
   Widget build(BuildContext context) {
@@ -26,7 +27,7 @@ class ConnectionBadge extends StatelessWidget {
         label = 'STALE';
         break;
       case ConnectionStatus.disconnected:
-        badgeColor = AppTheme.danger;
+        badgeColor = AppTheme.textMuted;
         label = 'DISCONNECTED';
         break;
     }
@@ -34,35 +35,28 @@ class ConnectionBadge extends StatelessWidget {
     return Container(
       padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
       decoration: BoxDecoration(
-        color: badgeColor.withOpacity(0.12),
+        color: badgeColor.withValues(alpha: 0.08),
         borderRadius: BorderRadius.circular(20),
-        border: Border.all(color: badgeColor.withOpacity(0.4), width: 1),
+        border: Border.all(color: badgeColor.withValues(alpha: 0.25), width: 1),
       ),
       child: Row(
         mainAxisSize: MainAxisSize.min,
         children: [
           Container(
-            width: 7,
-            height: 7,
+            width: 6,
+            height: 6,
             decoration: BoxDecoration(
               color: badgeColor,
               shape: BoxShape.circle,
-              boxShadow: [
-                BoxShadow(
-                  color: badgeColor.withOpacity(0.6),
-                  blurRadius: 4,
-                  spreadRadius: 1,
-                ),
-              ],
             ),
           ),
           const SizedBox(width: 6),
           Text(
             label,
-            style: TextStyle(
+            style: GoogleFonts.jetBrainsMono(
               color: badgeColor,
-              fontSize: 11,
-              fontWeight: FontWeight.w800,
+              fontSize: 10,
+              fontWeight: FontWeight.w700,
               letterSpacing: 0.8,
             ),
           ),
@@ -82,7 +76,7 @@ class VitalCard extends StatelessWidget {
   final bool isWarning;
 
   const VitalCard({
-    Key? key,
+    super.key,
     required this.label,
     required this.value,
     required this.unit,
@@ -90,9 +84,8 @@ class VitalCard extends StatelessWidget {
     required this.accentColor,
     this.subtitle,
     this.isWarning = false,
-  }) : super(key: key);
+  });
 
-  // Convenient secondary constructor allowing (title: ..., color: ...)
   factory VitalCard.styled({
     Key? key,
     required String title,
@@ -120,14 +113,15 @@ class VitalCard extends StatelessWidget {
     final effectiveColor = isWarning ? AppTheme.danger : accentColor;
 
     return Container(
-      padding: const EdgeInsets.all(16),
+      padding: const EdgeInsets.all(18),
       decoration: BoxDecoration(
         color: AppTheme.surface,
-        borderRadius: BorderRadius.circular(16),
+        borderRadius: BorderRadius.circular(20),
         border: Border.all(
-          color: isWarning ? AppTheme.danger.withOpacity(0.6) : AppTheme.border,
+          color: isWarning ? AppTheme.danger.withValues(alpha: 0.4) : AppTheme.border,
           width: isWarning ? 1.5 : 1.0,
         ),
+        boxShadow: AppTheme.cardShadow,
       ),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
@@ -137,7 +131,7 @@ class VitalCard extends StatelessWidget {
             children: [
               Text(
                 label.toUpperCase(),
-                style: TextStyle(
+                style: GoogleFonts.inter(
                   color: isWarning ? AppTheme.danger : AppTheme.textSecondary,
                   fontSize: 11,
                   fontWeight: FontWeight.w700,
@@ -145,10 +139,10 @@ class VitalCard extends StatelessWidget {
                 ),
               ),
               Container(
-                padding: const EdgeInsets.all(6),
+                padding: const EdgeInsets.all(7),
                 decoration: BoxDecoration(
-                  color: effectiveColor.withOpacity(0.12),
-                  borderRadius: BorderRadius.circular(8),
+                  color: effectiveColor.withValues(alpha: 0.10),
+                  shape: BoxShape.circle,
                 ),
                 child: Icon(icon, color: effectiveColor, size: 16),
               ),
@@ -161,19 +155,19 @@ class VitalCard extends StatelessWidget {
             children: [
               Text(
                 value,
-                style: TextStyle(
+                style: GoogleFonts.outfit(
                   color: isWarning ? AppTheme.danger : AppTheme.textPrimary,
                   fontSize: 26,
                   fontWeight: FontWeight.w800,
                   letterSpacing: -0.5,
                 ),
               ),
-              const SizedBox(width: 4),
+              const SizedBox(width: 5),
               Text(
                 unit,
-                style: TextStyle(
+                style: GoogleFonts.inter(
                   color: effectiveColor,
-                  fontSize: 13,
+                  fontSize: 12,
                   fontWeight: FontWeight.w600,
                 ),
               ),
@@ -183,9 +177,10 @@ class VitalCard extends StatelessWidget {
             const SizedBox(height: 6),
             Text(
               subtitle!,
-              style: const TextStyle(
+              style: GoogleFonts.inter(
                 color: AppTheme.textMuted,
                 fontSize: 11,
+                fontWeight: FontWeight.w500,
               ),
             ),
           ],

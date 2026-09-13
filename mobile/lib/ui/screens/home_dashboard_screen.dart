@@ -16,7 +16,7 @@ import 'package:samadhan_health/ui/screens/live_vitals_screen.dart';
 import 'package:samadhan_health/ui/widgets/vital_card.dart';
 
 class HomeDashboardScreen extends StatefulWidget {
-  const HomeDashboardScreen({Key? key}) : super(key: key);
+  const HomeDashboardScreen({super.key});
 
   @override
   State<HomeDashboardScreen> createState() => _HomeDashboardScreenState();
@@ -28,7 +28,7 @@ class _HomeDashboardScreenState extends State<HomeDashboardScreen> {
 
     showModalBottomSheet(
       context: context,
-      backgroundColor: const Color(0xFF131B2E),
+      backgroundColor: AppTheme.surface,
       shape: const RoundedRectangleBorder(
         borderRadius: BorderRadius.vertical(top: Radius.circular(24)),
       ),
@@ -49,7 +49,7 @@ class _HomeDashboardScreenState extends State<HomeDashboardScreen> {
                       style: GoogleFonts.outfit(
                         fontSize: 18,
                         fontWeight: FontWeight.bold,
-                        color: Colors.white,
+                        color: AppTheme.textPrimary,
                       ),
                     ),
                   ],
@@ -57,28 +57,28 @@ class _HomeDashboardScreenState extends State<HomeDashboardScreen> {
                 const SizedBox(height: 12),
                 Text(
                   'Temporarily silence this guardian alert. You will be reminded again once the snooze expires.',
-                  style: GoogleFonts.inter(fontSize: 13, color: Colors.white60),
+                  style: GoogleFonts.inter(fontSize: 13, color: AppTheme.textSecondary),
                 ),
                 const SizedBox(height: 20),
                 ListTile(
-                  leading: const Icon(Icons.timer_outlined, color: Colors.white70),
-                  title: const Text('Snooze for 10 Minutes', style: TextStyle(color: Colors.white)),
+                  leading: const Icon(Icons.timer_outlined, color: AppTheme.primaryTeal),
+                  title: const Text('Snooze for 10 Minutes', style: TextStyle(color: AppTheme.textPrimary, fontWeight: FontWeight.w500)),
                   onTap: () {
                     guardian.snoozeAlert(type, const Duration(minutes: 10));
                     Navigator.pop(ctx);
                   },
                 ),
                 ListTile(
-                  leading: const Icon(Icons.timer_outlined, color: Colors.white70),
-                  title: const Text('Snooze for 30 Minutes', style: TextStyle(color: Colors.white)),
+                  leading: const Icon(Icons.timer_outlined, color: AppTheme.primaryTeal),
+                  title: const Text('Snooze for 30 Minutes', style: TextStyle(color: AppTheme.textPrimary, fontWeight: FontWeight.w500)),
                   onTap: () {
                     guardian.snoozeAlert(type, const Duration(minutes: 30));
                     Navigator.pop(ctx);
                   },
                 ),
                 ListTile(
-                  leading: const Icon(Icons.timer_outlined, color: Colors.white70),
-                  title: const Text('Snooze for 1 Hour', style: TextStyle(color: Colors.white)),
+                  leading: const Icon(Icons.timer_outlined, color: AppTheme.primaryTeal),
+                  title: const Text('Snooze for 1 Hour', style: TextStyle(color: AppTheme.textPrimary, fontWeight: FontWeight.w500)),
                   onTap: () {
                     guardian.snoozeAlert(type, const Duration(hours: 1));
                     Navigator.pop(ctx);
@@ -90,7 +90,7 @@ class _HomeDashboardScreenState extends State<HomeDashboardScreen> {
                     guardian.dismissAlert(type);
                     Navigator.pop(ctx);
                   },
-                  child: const Text('Dismiss for now', style: TextStyle(color: Colors.white54)),
+                  child: const Text('Dismiss for now', style: TextStyle(color: AppTheme.textSecondary)),
                 ),
               ],
             ),
@@ -107,7 +107,7 @@ class _HomeDashboardScreenState extends State<HomeDashboardScreen> {
 
     showModalBottomSheet(
       context: context,
-      backgroundColor: const Color(0xFF131B2E),
+      backgroundColor: AppTheme.surface,
       shape: const RoundedRectangleBorder(
         borderRadius: BorderRadius.vertical(top: Radius.circular(24)),
       ),
@@ -143,14 +143,14 @@ class _HomeDashboardScreenState extends State<HomeDashboardScreen> {
                             style: GoogleFonts.outfit(
                               fontSize: 18,
                               fontWeight: FontWeight.bold,
-                              color: Colors.white,
+                              color: AppTheme.textPrimary,
                             ),
                           ),
                           Text(
                             user?.email ?? '',
                             style: GoogleFonts.inter(
                               fontSize: 12,
-                              color: Colors.white60,
+                              color: AppTheme.textSecondary,
                             ),
                           ),
                         ],
@@ -174,7 +174,7 @@ class _HomeDashboardScreenState extends State<HomeDashboardScreen> {
                   ],
                 ),
                 const SizedBox(height: 20),
-                const Divider(color: Colors.white12),
+                const Divider(color: AppTheme.border),
                 const SizedBox(height: 12),
 
                 // Emergency Contacts
@@ -184,12 +184,12 @@ class _HomeDashboardScreenState extends State<HomeDashboardScreen> {
                     const SizedBox(width: 10),
                     Text(
                       'Emergency Contact:',
-                      style: GoogleFonts.inter(color: Colors.white70, fontSize: 13),
+                      style: GoogleFonts.inter(color: AppTheme.textSecondary, fontSize: 13),
                     ),
                     const Spacer(),
                     Text(
                       user?.emergencyContacts.isNotEmpty == true ? user!.emergencyContacts.first : 'None',
-                      style: GoogleFonts.jetBrainsMono(color: Colors.white, fontSize: 13, fontWeight: FontWeight.w600),
+                      style: GoogleFonts.jetBrainsMono(color: AppTheme.textPrimary, fontSize: 13, fontWeight: FontWeight.w600),
                     ),
                   ],
                 ),
@@ -202,7 +202,7 @@ class _HomeDashboardScreenState extends State<HomeDashboardScreen> {
                     const SizedBox(width: 10),
                     Text(
                       'Paired Band:',
-                      style: GoogleFonts.inter(color: Colors.white70, fontSize: 13),
+                      style: GoogleFonts.inter(color: AppTheme.textSecondary, fontSize: 13),
                     ),
                     const Spacer(),
                     Text(
@@ -211,7 +211,7 @@ class _HomeDashboardScreenState extends State<HomeDashboardScreen> {
                           : (ble.lastPairedDeviceId != null && ble.lastPairedDeviceId!.length >= 8
                               ? 'ID: ${ble.lastPairedDeviceId!.substring(0, 8)}...'
                               : 'None'),
-                      style: GoogleFonts.jetBrainsMono(color: Colors.white, fontSize: 13, fontWeight: FontWeight.w600),
+                      style: GoogleFonts.jetBrainsMono(color: AppTheme.textPrimary, fontSize: 13, fontWeight: FontWeight.w600),
                     ),
                   ],
                 ),
@@ -285,7 +285,7 @@ class _HomeDashboardScreenState extends State<HomeDashboardScreen> {
     }
 
     return Scaffold(
-      backgroundColor: const Color(0xFF0A0E1A),
+      backgroundColor: AppTheme.background,
       appBar: AppBar(
         backgroundColor: Colors.transparent,
         elevation: 0,
@@ -298,7 +298,7 @@ class _HomeDashboardScreenState extends State<HomeDashboardScreen> {
                 fontSize: 16,
                 fontWeight: FontWeight.bold,
                 letterSpacing: 1.5,
-                color: Colors.white,
+                color: AppTheme.textPrimary,
               ),
             ),
             Row(
@@ -318,7 +318,7 @@ class _HomeDashboardScreenState extends State<HomeDashboardScreen> {
                       : 'Offline Buffer (${sync.unsyncedCount} queued)',
                   style: GoogleFonts.inter(
                     fontSize: 10,
-                    color: Colors.white54,
+                    color: AppTheme.textSecondary,
                   ),
                 ),
               ],
@@ -340,7 +340,7 @@ class _HomeDashboardScreenState extends State<HomeDashboardScreen> {
 
           // Pairing screen
           IconButton(
-            icon: const Icon(Icons.bluetooth_searching_rounded, color: Colors.white70),
+            icon: const Icon(Icons.bluetooth_searching_rounded, color: AppTheme.textSecondary),
             tooltip: 'Pair Device',
             onPressed: () {
               Navigator.push(
@@ -389,11 +389,12 @@ class _HomeDashboardScreenState extends State<HomeDashboardScreen> {
                     );
                   },
                   child: Container(
-                    padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
+                    padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
                     decoration: BoxDecoration(
-                      color: const Color(0xFF131B2E),
+                      color: AppTheme.surface,
                       borderRadius: BorderRadius.circular(16),
-                      border: Border.all(color: Colors.white12),
+                      border: Border.all(color: AppTheme.border),
+                      boxShadow: AppTheme.cardShadow,
                     ),
                     child: Row(
                       children: [
@@ -405,7 +406,7 @@ class _HomeDashboardScreenState extends State<HomeDashboardScreen> {
                             color: Colors.orange,
                           ),
                         ),
-                        const SizedBox(width: 10),
+                        const SizedBox(width: 12),
                         Expanded(
                           child: Column(
                             crossAxisAlignment: CrossAxisAlignment.start,
@@ -416,12 +417,13 @@ class _HomeDashboardScreenState extends State<HomeDashboardScreen> {
                                   fontSize: 12,
                                   fontWeight: FontWeight.bold,
                                   letterSpacing: 0.8,
-                                  color: Colors.white,
+                                  color: AppTheme.textPrimary,
                                 ),
                               ),
+                              const SizedBox(height: 2),
                               const Text(
                                 'Tap to scan and pair your Samadhan Band via Bluetooth Low Energy.',
-                                style: TextStyle(fontSize: 11, color: Colors.white54),
+                                style: TextStyle(fontSize: 11, color: AppTheme.textSecondary),
                               ),
                             ],
                           ),
@@ -435,9 +437,10 @@ class _HomeDashboardScreenState extends State<HomeDashboardScreen> {
                 Container(
                   padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
                   decoration: BoxDecoration(
-                    color: const Color(0xFF131B2E),
+                    color: AppTheme.surface,
                     borderRadius: BorderRadius.circular(16),
-                    border: Border.all(color: AppTheme.primaryTeal.withOpacity(0.3)),
+                    border: Border.all(color: AppTheme.border),
+                    boxShadow: AppTheme.cardShadow,
                   ),
                   child: Row(
                     mainAxisAlignment: MainAxisAlignment.spaceBetween,
@@ -447,7 +450,7 @@ class _HomeDashboardScreenState extends State<HomeDashboardScreen> {
                         children: [
                           Icon(
                             guardian.isCharging ? Icons.bolt_rounded : Icons.battery_charging_full_rounded,
-                            color: guardian.isCharging ? AppTheme.primaryTeal : (guardian.batteryLevel < 20 ? Colors.redAccent : Colors.white70),
+                            color: guardian.isCharging ? AppTheme.primaryTeal : (guardian.batteryLevel < 20 ? Colors.redAccent : AppTheme.textSecondary),
                             size: 18,
                           ),
                           const SizedBox(width: 6),
@@ -456,7 +459,7 @@ class _HomeDashboardScreenState extends State<HomeDashboardScreen> {
                             style: GoogleFonts.inter(
                               fontSize: 12,
                               fontWeight: FontWeight.w600,
-                              color: Colors.white,
+                              color: AppTheme.textPrimary,
                             ),
                           ),
                         ],
@@ -473,9 +476,9 @@ class _HomeDashboardScreenState extends State<HomeDashboardScreen> {
                         child: Container(
                           padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
                           decoration: BoxDecoration(
-                            color: Colors.white.withOpacity(0.06),
+                            color: AppTheme.surfaceSubtle,
                             borderRadius: BorderRadius.circular(12),
-                            border: Border.all(color: Colors.white12),
+                            border: Border.all(color: AppTheme.border),
                           ),
                           child: Row(
                             children: [
@@ -500,14 +503,14 @@ class _HomeDashboardScreenState extends State<HomeDashboardScreen> {
                           Icon(
                             guardian.isWristWorn ? Icons.how_to_reg_rounded : Icons.person_off_rounded,
                             size: 16,
-                            color: guardian.isWristWorn ? AppTheme.primaryTeal : Colors.amber,
+                            color: guardian.isWristWorn ? AppTheme.primaryTeal : Colors.amber.shade700,
                           ),
                           const SizedBox(width: 6),
                           Text(
                             guardian.isWristWorn ? 'On Wrist' : 'Off Wrist',
                             style: GoogleFonts.inter(
                               fontSize: 11,
-                              color: guardian.isWristWorn ? Colors.white70 : Colors.amber,
+                              color: guardian.isWristWorn ? AppTheme.textPrimary : Colors.amber.shade700,
                               fontWeight: FontWeight.w500,
                             ),
                           ),
@@ -526,9 +529,9 @@ class _HomeDashboardScreenState extends State<HomeDashboardScreen> {
                 Container(
                   padding: const EdgeInsets.all(14),
                   decoration: BoxDecoration(
-                    color: Colors.deepOrange.withOpacity(0.18),
+                    color: const Color(0xFFFFF7ED),
                     borderRadius: BorderRadius.circular(16),
-                    border: Border.all(color: Colors.deepOrange.withOpacity(0.5)),
+                    border: Border.all(color: const Color(0xFFFDBA74)),
                   ),
                   child: Column(
                     crossAxisAlignment: CrossAxisAlignment.start,
@@ -543,20 +546,20 @@ class _HomeDashboardScreenState extends State<HomeDashboardScreen> {
                               style: GoogleFonts.outfit(
                                 fontSize: 13,
                                 fontWeight: FontWeight.bold,
-                                color: Colors.deepOrangeAccent,
+                                color: const Color(0xFFC2410C),
                                 letterSpacing: 1.0,
                               ),
                             ),
                           ),
                           IconButton(
-                            icon: const Icon(Icons.snooze_rounded, color: Colors.white70, size: 20),
+                            icon: const Icon(Icons.snooze_rounded, color: Color(0xFFC2410C), size: 20),
                             onPressed: () => _showSnoozeModal(context, GuardianAlertType.outOfRange, 'Out-of-Range Alert'),
                           ),
                         ],
                       ),
                       Text(
                         'You appear to have walked far from your Samadhan Band (~${guardian.estimatedDistance.toStringAsFixed(1)}m away).',
-                        style: const TextStyle(color: Colors.white70, fontSize: 12),
+                        style: const TextStyle(color: Color(0xFF9A3412), fontSize: 12),
                       ),
                       const SizedBox(height: 8),
                       Row(
@@ -571,7 +574,7 @@ class _HomeDashboardScreenState extends State<HomeDashboardScreen> {
                             },
                             icon: const Icon(Icons.radar_rounded, size: 16),
                             label: const Text('FIND BAND RADAR'),
-                            style: TextButton.styleFrom(foregroundColor: Colors.white),
+                            style: TextButton.styleFrom(foregroundColor: const Color(0xFFC2410C)),
                           ),
                         ],
                       ),
@@ -586,9 +589,9 @@ class _HomeDashboardScreenState extends State<HomeDashboardScreen> {
                 Container(
                   padding: const EdgeInsets.all(14),
                   decoration: BoxDecoration(
-                    color: Colors.amber.withOpacity(0.16),
+                    color: const Color(0xFFFFFBEB),
                     borderRadius: BorderRadius.circular(16),
-                    border: Border.all(color: Colors.amber.withOpacity(0.4)),
+                    border: Border.all(color: const Color(0xFFFCD34D)),
                   ),
                   child: Row(
                     children: [
@@ -610,13 +613,13 @@ class _HomeDashboardScreenState extends State<HomeDashboardScreen> {
                             const SizedBox(height: 2),
                             const Text(
                               'Optical PPG sensor is disconnected from skin. Please put on the band.',
-                              style: TextStyle(color: Colors.white70, fontSize: 11),
+                              style: TextStyle(color: Color(0xFF92400E), fontSize: 11),
                             ),
                           ],
                         ),
                       ),
                       IconButton(
-                        icon: const Icon(Icons.snooze_rounded, color: Colors.white70),
+                        icon: const Icon(Icons.snooze_rounded, color: Color(0xFFB45309)),
                         onPressed: () => _showSnoozeModal(context, GuardianAlertType.offWrist, 'Off-Wrist Alert'),
                       ),
                     ],
@@ -630,9 +633,9 @@ class _HomeDashboardScreenState extends State<HomeDashboardScreen> {
                 Container(
                   padding: const EdgeInsets.all(14),
                   decoration: BoxDecoration(
-                    color: Colors.red.withOpacity(0.16),
+                    color: const Color(0xFFFEF2F2),
                     borderRadius: BorderRadius.circular(16),
-                    border: Border.all(color: Colors.red.withOpacity(0.4)),
+                    border: Border.all(color: const Color(0xFFFCA5A5)),
                   ),
                   child: Row(
                     children: [
@@ -652,13 +655,13 @@ class _HomeDashboardScreenState extends State<HomeDashboardScreen> {
                             ),
                             const Text(
                               'Connect the magnetic charging dock to maintain monitoring.',
-                              style: TextStyle(color: Colors.white70, fontSize: 11),
+                              style: TextStyle(color: Color(0xFF92400E), fontSize: 11),
                             ),
                           ],
                         ),
                       ),
                       IconButton(
-                        icon: const Icon(Icons.snooze_rounded, color: Colors.white70),
+                        icon: const Icon(Icons.snooze_rounded, color: Color(0xFFB45309)),
                         onPressed: () => _showSnoozeModal(context, GuardianAlertType.lowBattery, 'Low Battery Alert'),
                       ),
                     ],
@@ -672,9 +675,9 @@ class _HomeDashboardScreenState extends State<HomeDashboardScreen> {
                 Container(
                   padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 10),
                   decoration: BoxDecoration(
-                    color: AppTheme.primaryTeal.withOpacity(0.12),
+                    color: AppTheme.primaryTeal.withValues(alpha: 0.12),
                     borderRadius: BorderRadius.circular(12),
-                    border: Border.all(color: AppTheme.primaryTeal.withOpacity(0.3)),
+                    border: Border.all(color: AppTheme.primaryTeal.withValues(alpha: 0.3)),
                   ),
                   child: Row(
                     children: [
@@ -699,7 +702,7 @@ class _HomeDashboardScreenState extends State<HomeDashboardScreen> {
                 Container(
                   padding: const EdgeInsets.all(16),
                   decoration: BoxDecoration(
-                    color: AppTheme.danger.withOpacity(0.2),
+                    color: AppTheme.danger.withValues(alpha: 0.2),
                     borderRadius: BorderRadius.circular(16),
                     border: Border.all(color: AppTheme.danger, width: 2),
                   ),
@@ -721,7 +724,7 @@ class _HomeDashboardScreenState extends State<HomeDashboardScreen> {
                             ),
                             Text(
                               'Acceleration magnitude: ${packet?.accelMagnitude?.toStringAsFixed(2) ?? "--"}g. SOS protocol active.',
-                              style: const TextStyle(color: Colors.white70, fontSize: 12),
+                              style: const TextStyle(color: Color(0xFF9A3412), fontSize: 12),
                             ),
                           ],
                         ),
@@ -778,7 +781,7 @@ class _HomeDashboardScreenState extends State<HomeDashboardScreen> {
                     child: VitalCard(
                       label: 'MOTION & POSTURE',
                       value: packet?.movementState ?? 'IDLE',
-                      unit: '${packet?.accelMagnitude?.toStringAsFixed(2) ?? "1.00"}g',
+                      unit: '${packet?.accelMagnitude?.toStringAsFixed(2) ?? '1.00'}g',
                       icon: Icons.directions_walk_rounded,
                       accentColor: AppTheme.primaryTeal,
                       subtitle: 'MPU6050 6-AXIS',
@@ -793,9 +796,10 @@ class _HomeDashboardScreenState extends State<HomeDashboardScreen> {
               Container(
                 padding: const EdgeInsets.all(18),
                 decoration: BoxDecoration(
-                  color: const Color(0xFF131B2E),
+                  color: AppTheme.surface,
                   borderRadius: BorderRadius.circular(20),
-                  border: Border.all(color: riskColor.withOpacity(0.35), width: 1.5),
+                  border: Border.all(color: riskColor.withValues(alpha: 0.35), width: 1.5),
+                  boxShadow: AppTheme.cardShadow,
                 ),
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
@@ -805,7 +809,7 @@ class _HomeDashboardScreenState extends State<HomeDashboardScreen> {
                         Container(
                           padding: const EdgeInsets.all(8),
                           decoration: BoxDecoration(
-                            color: riskColor.withOpacity(0.18),
+                            color: riskColor.withValues(alpha: 0.18),
                             borderRadius: BorderRadius.circular(10),
                           ),
                           child: Icon(
@@ -845,9 +849,9 @@ class _HomeDashboardScreenState extends State<HomeDashboardScreen> {
                         Container(
                           padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
                           decoration: BoxDecoration(
-                            color: riskColor.withOpacity(0.12),
+                            color: riskColor.withValues(alpha: 0.12),
                             borderRadius: BorderRadius.circular(10),
-                            border: Border.all(color: riskColor.withOpacity(0.3)),
+                            border: Border.all(color: riskColor.withValues(alpha: 0.3)),
                           ),
                           child: Text(
                             '${assessment?.compositeRiskScore ?? 12.0}/100',
@@ -892,10 +896,12 @@ class _HomeDashboardScreenState extends State<HomeDashboardScreen> {
                       icon: const Icon(Icons.insights_rounded, size: 18),
                       label: const Text('CHARTS'),
                       style: OutlinedButton.styleFrom(
-                        foregroundColor: AppTheme.primaryTeal,
-                        side: const BorderSide(color: Colors.white24),
+                        foregroundColor: AppTheme.textPrimary,
+                        backgroundColor: AppTheme.surface,
+                        side: const BorderSide(color: AppTheme.border),
                         padding: const EdgeInsets.symmetric(vertical: 14),
                         shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+                        elevation: 0,
                       ),
                     ),
                   ),
@@ -911,10 +917,12 @@ class _HomeDashboardScreenState extends State<HomeDashboardScreen> {
                       icon: const Icon(Icons.radar_rounded, size: 18),
                       label: const Text('FIND BAND'),
                       style: OutlinedButton.styleFrom(
-                        foregroundColor: AppTheme.accentBlue,
-                        side: const BorderSide(color: Colors.white24),
+                        foregroundColor: AppTheme.primaryTeal,
+                        backgroundColor: AppTheme.surface,
+                        side: BorderSide(color: AppTheme.primaryTeal.withValues(alpha: 0.3)),
                         padding: const EdgeInsets.symmetric(vertical: 14),
                         shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+                        elevation: 0,
                       ),
                     ),
                   ),
@@ -927,12 +935,13 @@ class _HomeDashboardScreenState extends State<HomeDashboardScreen> {
                           MaterialPageRoute(builder: (_) => const AiCompanionScreen()),
                         );
                       },
-                      icon: const Icon(Icons.auto_awesome, size: 16, color: Colors.black),
-                      label: const Text('AI DOCTOR', style: TextStyle(color: Colors.black, fontWeight: FontWeight.bold, fontSize: 11)),
+                      icon: const Icon(Icons.auto_awesome, size: 16, color: Colors.white),
+                      label: const Text('AI DOCTOR', style: TextStyle(color: Colors.white, fontWeight: FontWeight.bold, fontSize: 11)),
                       style: ElevatedButton.styleFrom(
                         backgroundColor: AppTheme.primaryTeal,
                         padding: const EdgeInsets.symmetric(vertical: 14),
                         shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+                        elevation: 0,
                       ),
                     ),
                   ),
@@ -976,15 +985,15 @@ class _TinyMlPill extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return Container(
-      padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
+      padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 8),
       decoration: BoxDecoration(
-        color: const Color(0xFF0E1424),
+        color: AppTheme.surfaceSubtle,
         borderRadius: BorderRadius.circular(10),
-        border: Border.all(color: Colors.white12),
+        border: Border.all(color: AppTheme.border),
       ),
       child: Column(
         children: [
-          Text(label, style: const TextStyle(color: AppTheme.textMuted, fontSize: 10, fontWeight: FontWeight.w600)),
+          Text(label, style: const TextStyle(color: AppTheme.textSecondary, fontSize: 10, fontWeight: FontWeight.w600)),
           const SizedBox(height: 2),
           Text(value, style: TextStyle(color: color, fontSize: 13, fontWeight: FontWeight.bold)),
         ],

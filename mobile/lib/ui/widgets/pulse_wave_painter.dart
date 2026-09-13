@@ -7,11 +7,10 @@ class LivePulseWaveWidget extends StatefulWidget {
   final bool isLive;
 
   const LivePulseWaveWidget({
-    Key? key,
+    super.key,
     required this.heartRate,
     this.isLive = true,
-  }) : super(key: key);
-
+  });
   @override
   State<LivePulseWaveWidget> createState() => _LivePulseWaveWidgetState();
 }
@@ -77,7 +76,7 @@ class _PulseWavePainter extends CustomPainter {
       ..strokeCap = StrokeCap.round;
 
     final glowPaint = Paint()
-      ..color = color.withOpacity(0.35)
+      ..color = color.withValues(alpha: 0.35)
       ..strokeWidth = 6.0
       ..style = PaintingStyle.stroke
       ..maskFilter = const MaskFilter.blur(BlurStyle.normal, 4);

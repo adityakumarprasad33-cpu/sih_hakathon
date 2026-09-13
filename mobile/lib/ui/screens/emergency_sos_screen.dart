@@ -93,7 +93,7 @@ class _EmergencySosScreenState extends State<EmergencySosScreen> {
                   Container(
                     padding: const EdgeInsets.all(20),
                     decoration: BoxDecoration(
-                      color: AppTheme.danger.withOpacity(0.15),
+                      color: AppTheme.danger.withValues(alpha: 0.15),
                       shape: BoxShape.circle,
                     ),
                     child: const Icon(
@@ -128,7 +128,7 @@ class _EmergencySosScreenState extends State<EmergencySosScreen> {
                 decoration: BoxDecoration(
                   color: AppTheme.surface,
                   borderRadius: BorderRadius.circular(18),
-                  border: Border.all(color: AppTheme.danger.withOpacity(0.5)),
+                  border: Border.all(color: AppTheme.danger.withValues(alpha: 0.5)),
                 ),
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
@@ -154,7 +154,7 @@ class _EmergencySosScreenState extends State<EmergencySosScreen> {
                     const SizedBox(height: 10),
                     Text(
                       'Emergency Contacts: +91 98765 43210 (Family), Hospital Gateway',
-                      style: TextStyle(color: AppTheme.textMuted.withOpacity(0.8), fontSize: 12),
+                      style: TextStyle(color: AppTheme.textMuted.withValues(alpha: 0.8), fontSize: 12),
                     ),
                   ],
                 ),

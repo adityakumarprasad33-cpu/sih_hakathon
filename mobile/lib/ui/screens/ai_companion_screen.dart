@@ -52,20 +52,27 @@ class _AiCompanionScreenState extends State<AiCompanionScreen> {
     final packet = ble.latestPacket;
 
     return Scaffold(
-      backgroundColor: const Color(0xFF090C15),
+      backgroundColor: AppTheme.background,
       appBar: AppBar(
-        backgroundColor: const Color(0xFF121727),
+        backgroundColor: AppTheme.surface,
         elevation: 0,
+        shape: const Border(
+          bottom: BorderSide(color: AppTheme.border),
+        ),
+        leading: IconButton(
+          icon: const Icon(Icons.arrow_back_ios_new_rounded, color: AppTheme.textPrimary, size: 20),
+          onPressed: () => Navigator.pop(context),
+        ),
         title: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
             Text(
               'SAMADHAN AI DOCTOR',
               style: GoogleFonts.outfit(
-                fontSize: 16,
+                fontSize: 15,
                 fontWeight: FontWeight.bold,
-                letterSpacing: 1.5,
-                color: Colors.white,
+                letterSpacing: 1.0,
+                color: AppTheme.textPrimary,
               ),
             ),
             Row(
@@ -74,16 +81,16 @@ class _AiCompanionScreenState extends State<AiCompanionScreen> {
                   width: 6,
                   height: 6,
                   decoration: const BoxDecoration(
-                    color: AppTheme.primaryTeal,
                     shape: BoxShape.circle,
+                    color: AppTheme.primaryTeal,
                   ),
                 ),
                 const SizedBox(width: 6),
                 Text(
-                  'Connected to Clinical LLM API',
+                  'Connected to Modal Serverless LLM',
                   style: GoogleFonts.inter(
-                    fontSize: 10,
-                    color: Colors.white54,
+                    fontSize: 11,
+                    color: AppTheme.textSecondary,
                   ),
                 ),
               ],
@@ -91,107 +98,108 @@ class _AiCompanionScreenState extends State<AiCompanionScreen> {
           ],
         ),
         actions: [
-          IconButton(
-            icon: const Icon(Icons.cleaning_services_rounded, size: 20, color: Colors.white70),
-            tooltip: 'Clear Chat History',
-            onPressed: ai.clearHistory,
-          ),
+          if (packet != null) ...[
+            Center(
+              child: Container(
+                margin: const EdgeInsets.only(right: 16),
+                padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
+                decoration: BoxDecoration(
+                  color: AppTheme.surfaceSubtle,
+                  borderRadius: BorderRadius.circular(10),
+                  border: Border.all(color: AppTheme.border),
+                ),
+                child: Row(
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    const Icon(Icons.favorite_rounded, color: Colors.redAccent, size: 14),
+                    const SizedBox(width: 4),
+                    Text(
+                      '${packet.heartRate ?? "--"} BPM',
+                      style: GoogleFonts.jetBrainsMono(
+                        fontSize: 11,
+                        fontWeight: FontWeight.bold,
+                        color: AppTheme.textPrimary,
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+            ),
+          ],
         ],
       ),
       body: SafeArea(
         child: Column(
           children: [
-            // Live Telemetry Context Banner
-            Container(
-              padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 10),
-              decoration: BoxDecoration(
-                color: const Color(0xFF101524),
-                border: Border(bottom: BorderSide(color: Colors.white.withValues(alpha: 0.08))),
-              ),
-              child: Row(
-                children: [
-                  const Icon(Icons.sensors_rounded, color: AppTheme.primaryTeal, size: 16),
-                  const SizedBox(width: 8),
-                  Expanded(
-                    child: Text(
-                      packet != null
-                          ? '${packet.heartRate ?? "--"} BPM • SpO2 ${packet.spo2?.toStringAsFixed(1) ?? "--"}% • ${packet.temperature?.toStringAsFixed(1) ?? "--"}°C • Risk: ${packet.riskLevel.name.toUpperCase()}'
-                          : 'Awaiting Wearable Telemetry Stream (Band Idle)',
-                      style: GoogleFonts.jetBrainsMono(
-                        color: Colors.white70,
-                        fontSize: 11,
-                        fontWeight: FontWeight.w600,
-                      ),
-                      overflow: TextOverflow.ellipsis,
-                    ),
-                  ),
-                ],
-              ),
-            ),
-
-            // Messages List
+            // Chat Message Thread
             Expanded(
               child: ListView.builder(
                 controller: _scrollController,
-                padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
+                padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 16),
                 itemCount: ai.messages.length,
                 itemBuilder: (context, index) {
                   final msg = ai.messages[index];
+                  final isUser = msg.isUser;
+                  final isMaintenance = msg.isMaintenance;
 
-                  if (msg.isUser) {
+                  if (isUser) {
                     return Align(
                       alignment: Alignment.centerRight,
                       child: Container(
-                        margin: const EdgeInsets.symmetric(vertical: 6),
-                        padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
                         constraints: BoxConstraints(
-                          maxWidth: MediaQuery.of(context).size.width * 0.80,
+                          maxWidth: MediaQuery.of(context).size.width * 0.78,
                         ),
+                        margin: const EdgeInsets.only(bottom: 12),
+                        padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
                         decoration: BoxDecoration(
                           color: AppTheme.primaryTeal,
                           borderRadius: BorderRadius.circular(18).copyWith(
                             bottomRight: const Radius.circular(2),
                           ),
+                          boxShadow: [
+                            BoxShadow(
+                              color: AppTheme.primaryTeal.withValues(alpha: 0.2),
+                              blurRadius: 8,
+                              offset: const Offset(0, 2),
+                            ),
+                          ],
                         ),
                         child: Text(
                           msg.text,
                           style: GoogleFonts.inter(
-                            color: Colors.black,
+                            color: Colors.white,
                             fontSize: 14,
                             fontWeight: FontWeight.w500,
-                            height: 1.35,
+                            height: 1.4,
                           ),
                         ),
                       ),
                     );
                   }
 
-                  // AI Response or Maintenance Notice
-                  final isMaintenance = msg.isMaintenance;
-
+                  // AI Response Bubble
                   return Align(
                     alignment: Alignment.centerLeft,
                     child: Container(
-                      margin: const EdgeInsets.symmetric(vertical: 6),
-                      padding: const EdgeInsets.all(16),
                       constraints: BoxConstraints(
                         maxWidth: MediaQuery.of(context).size.width * 0.85,
                       ),
+                      margin: const EdgeInsets.only(bottom: 14),
+                      padding: const EdgeInsets.all(16),
                       decoration: BoxDecoration(
-                        color: isMaintenance
-                            ? Colors.amber.withValues(alpha: 0.10)
-                            : const Color(0xFF131829),
+                        color: isMaintenance ? const Color(0xFFFFFBEB) : AppTheme.surface,
                         borderRadius: BorderRadius.circular(18).copyWith(
                           bottomLeft: const Radius.circular(2),
                         ),
                         border: Border.all(
                           color: isMaintenance
-                              ? Colors.amber.withValues(alpha: 0.4)
+                              ? const Color(0xFFFCD34D)
                               : (msg.urgency == 'CRITICAL'
                                   ? Colors.redAccent.withValues(alpha: 0.5)
-                                  : Colors.white.withValues(alpha: 0.08)),
+                                  : AppTheme.border),
                           width: isMaintenance ? 1.5 : 1.0,
                         ),
+                        boxShadow: AppTheme.cardShadow,
                       ),
                       child: Column(
                         crossAxisAlignment: CrossAxisAlignment.start,
@@ -206,7 +214,7 @@ class _AiCompanionScreenState extends State<AiCompanionScreen> {
                                         ? Icons.warning_amber_rounded
                                         : Icons.psychology_rounded),
                                 color: isMaintenance
-                                    ? Colors.amber
+                                    ? const Color(0xFFB45309)
                                     : (msg.urgency == 'CRITICAL' ? Colors.redAccent : AppTheme.primaryTeal),
                                 size: 16,
                               ),
@@ -215,16 +223,16 @@ class _AiCompanionScreenState extends State<AiCompanionScreen> {
                                 padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
                                 decoration: BoxDecoration(
                                   color: (isMaintenance
-                                          ? Colors.amber
+                                          ? const Color(0xFFB45309)
                                           : (msg.urgency == 'CRITICAL' ? Colors.redAccent : AppTheme.primaryTeal))
-                                      .withValues(alpha: 0.15),
+                                      .withValues(alpha: 0.12),
                                   borderRadius: BorderRadius.circular(6),
                                 ),
                                 child: Text(
                                   isMaintenance ? 'MAINTENANCE IN PROGRESS' : (msg.urgency ?? 'CLINICAL AI'),
                                   style: GoogleFonts.jetBrainsMono(
                                     color: isMaintenance
-                                        ? Colors.amber
+                                        ? const Color(0xFFB45309)
                                         : (msg.urgency == 'CRITICAL' ? Colors.redAccent : AppTheme.primaryTeal),
                                     fontSize: 9,
                                     fontWeight: FontWeight.bold,
@@ -238,7 +246,7 @@ class _AiCompanionScreenState extends State<AiCompanionScreen> {
                           Text(
                             msg.text,
                             style: GoogleFonts.inter(
-                              color: isMaintenance ? const Color(0xFFFFF0D0) : Colors.white,
+                              color: isMaintenance ? const Color(0xFF92400E) : AppTheme.textPrimary,
                               fontSize: 13.5,
                               height: 1.45,
                             ),
@@ -264,7 +272,7 @@ class _AiCompanionScreenState extends State<AiCompanionScreen> {
                     const SizedBox(width: 10),
                     Text(
                       'Querying Modal clinical LLM API...',
-                      style: GoogleFonts.inter(color: Colors.white54, fontSize: 12),
+                      style: GoogleFonts.inter(color: AppTheme.textSecondary, fontSize: 12),
                     ),
                   ],
                 ),
@@ -287,9 +295,9 @@ class _AiCompanionScreenState extends State<AiCompanionScreen> {
             // Input Bar
             Container(
               padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
-              decoration: BoxDecoration(
-                color: const Color(0xFF121727),
-                border: Border(top: BorderSide(color: Colors.white.withValues(alpha: 0.08))),
+              decoration: const BoxDecoration(
+                color: AppTheme.surface,
+                border: Border(top: BorderSide(color: AppTheme.border)),
               ),
               child: Row(
                 children: [
@@ -297,16 +305,16 @@ class _AiCompanionScreenState extends State<AiCompanionScreen> {
                     child: TextField(
                       controller: _controller,
                       onSubmitted: (_) => _sendMessage(),
-                      style: GoogleFonts.inter(color: Colors.white, fontSize: 14),
+                      style: GoogleFonts.inter(color: AppTheme.textPrimary, fontSize: 14),
                       decoration: InputDecoration(
                         hintText: 'Ask Samadhan AI Doctor...',
-                        hintStyle: const TextStyle(color: Colors.white38, fontSize: 13),
+                        hintStyle: GoogleFonts.inter(color: AppTheme.textSecondary, fontSize: 13),
                         filled: true,
-                        fillColor: const Color(0xFF0C101D),
+                        fillColor: AppTheme.surfaceSubtle,
                         contentPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
                         enabledBorder: OutlineInputBorder(
                           borderRadius: BorderRadius.circular(16),
-                          borderSide: BorderSide(color: Colors.white.withValues(alpha: 0.1)),
+                          borderSide: const BorderSide(color: AppTheme.border),
                         ),
                         focusedBorder: OutlineInputBorder(
                           borderRadius: BorderRadius.circular(16),
@@ -322,7 +330,7 @@ class _AiCompanionScreenState extends State<AiCompanionScreen> {
                       borderRadius: BorderRadius.circular(14),
                     ),
                     child: IconButton(
-                      icon: const Icon(Icons.arrow_upward_rounded, color: Colors.black, size: 20),
+                      icon: const Icon(Icons.arrow_upward_rounded, color: Colors.white, size: 20),
                       onPressed: () => _sendMessage(),
                     ),
                   ),
@@ -348,9 +356,9 @@ class _Chip extends StatelessWidget {
       padding: const EdgeInsets.only(right: 8),
       child: ActionChip(
         label: Text(label),
-        labelStyle: GoogleFonts.inter(color: Colors.white70, fontSize: 11, fontWeight: FontWeight.w500),
-        backgroundColor: const Color(0xFF131829),
-        side: BorderSide(color: Colors.white.withValues(alpha: 0.1)),
+        labelStyle: GoogleFonts.inter(color: AppTheme.textPrimary, fontSize: 12, fontWeight: FontWeight.w500),
+        backgroundColor: AppTheme.surface,
+        side: const BorderSide(color: AppTheme.border),
         shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
         onPressed: onTap,
       ),
